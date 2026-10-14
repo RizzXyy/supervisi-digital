@@ -110,8 +110,38 @@
 
 /* ---------- Mobile / jendela sempit ---------- */
 @media (max-width: 860px) {
-  .auth-page { grid-template-columns: 1fr; }
-  .auth-page .auth-hero { display: none; }
+  .auth-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Foto jadi header di atas form */
+  .auth-page .auth-hero {
+    display: flex;
+    align-items: flex-end;
+    padding: 28px 24px 24px;
+    min-height: 240px;
+  }
+  .auth-page .auth-hero-content {
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+  .auth-page .auth-logo { width: 52px; margin-bottom: 6px; }
+  .auth-page .auth-brand { font-size: 30px; }
+  .auth-page .auth-brand-sub { margin: 2px 0 0; font-size: 15px; }
+
+  /* Tagline disembunyikan di HP supaya header ringkas */
+  .auth-page .auth-tagline { display: none; }
+
+  /* Form tampil di bawah foto */
+  .auth-page .auth-panel {
+    justify-content: flex-start;
+    padding: 28px 24px 40px;
+  }
+  .auth-page .auth-head h2 { font-size: 24px; }
 }
 
 /* ---------- Khusus register ---------- */
