@@ -1,6 +1,6 @@
 import { createClient } from "./supabase";
 
-export type Role = "guru" | "supervisor";
+export type Role = "guru" | "kepala_sekolah";
 
 export type Session = {
   id: string;
