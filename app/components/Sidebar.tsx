@@ -19,17 +19,17 @@ import "./Sidebar.css";
 
 // roles = siapa yang boleh melihat menu itu. Ubah sesuai kebutuhan.
 const MENU: { label: string; href: string; icon: typeof House; roles: Role[] }[] = [
-  { label: "Dashboard", href: "/dashboard", icon: House, roles: ["supervisor", "guru"] },
-  { label: "Jadwal Supervisi", href: "/dashboard/jadwal", icon: CalendarDays, roles: ["supervisor", "guru"] },
-  { label: "Observasi", href: "/dashboard/observasi", icon: ClipboardPen, roles: ["supervisor"] },
-  { label: "E-Portofolio", href: "/dashboard/e-portofolio", icon: FolderKanban, roles: ["supervisor", "guru"] },
-  { label: "Micro-Coaching", href: "/dashboard/micro-coaching", icon: Users, roles: ["supervisor", "guru"] },
-  { label: "AI-Feedback", href: "/dashboard/ai-feedback", icon: BrainCircuit, roles: ["supervisor", "guru"] },
-  { label: "RTL Tracker", href: "/dashboard/rtl-tracker", icon: ChartNoAxesCombined, roles: ["supervisor", "guru"] },
-  { label: "Laporan", href: "/dashboard/laporan", icon: FileText, roles: ["supervisor", "guru"] },
+  { label: "Dashboard", href: "/dashboard", icon: House, roles: ["kepala_sekolah", "guru"] },
+  { label: "Jadwal Supervisi", href: "/dashboard/jadwal", icon: CalendarDays, roles: ["kepala_sekolah", "guru"] },
+  { label: "Observasi", href: "/dashboard/observasi", icon: ClipboardPen, roles: ["kepala_sekolah"] },
+  { label: "E-Portofolio", href: "/dashboard/e-portofolio", icon: FolderKanban, roles: ["kepala_sekolah", "guru"] },
+  { label: "Micro-Coaching", href: "/dashboard/micro-coaching", icon: Users, roles: ["kepala_sekolah", "guru"] },
+  { label: "AI-Feedback", href: "/dashboard/ai-feedback", icon: BrainCircuit, roles: ["kepala_sekolah", "guru"] },
+  { label: "RTL Tracker", href: "/dashboard/rtl-tracker", icon: ChartNoAxesCombined, roles: ["kepala_sekolah", "guru"] },
+  { label: "Laporan", href: "/dashboard/laporan", icon: FileText, roles: ["kepala_sekolah", "guru"] },
 ];
 
-const ROLE_LABEL: Record<Role, string> = { supervisor: "Supervisor", guru: "Guru" };
+const ROLE_LABEL: Record<Role, string> = { kepala_sekolah: "Kepala Sekolah", guru: "Guru" };
 
 export default function Sidebar() {
   const pathname = usePathname();
