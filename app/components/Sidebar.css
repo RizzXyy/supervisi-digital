@@ -72,96 +72,145 @@
 .sb-backdrop { display: none; }
 
 /* =========================================================
-   Mobile: SATU sidebar vertikal (rel ikon).
-   Tertutup  = logo + ikon menu berjajar ke bawah (68px)
-   Diklik logo = melebar (260px), teks muncul di samping ikon
+   Mobile: SATU sidebar vertikal (rel ikon) dengan animasi halus.
+   Tertutup    = logo + ikon menu berjajar ke bawah (68px)
+   Logo diklik = melebar (260px), teks muncul di samping ikon
+
+   Kunci animasi halus: posisi ikon TIDAK berpindah antara
+   tertutup/terbuka. Yang dianimasikan hanya lebar sidebar dan
+   opacity teks, jadi tidak ada elemen yang "loncat".
    ========================================================= */
 @media (max-width: 860px) {
-  /* Konten digeser selebar rel ikon */
+  /* Konten digeser selebar rel ikon (tetap, tidak ikut melebar) */
   .dash-shell {
     grid-template-columns: 1fr;
     padding-left: 68px;
   }
 
-  /* Sidebar selalu menempel di kiri, vertikal */
   .sb {
+    --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);
     position: fixed;
     top: 0; left: 0; bottom: 0;
     z-index: 100;
     width: 68px;
     height: 100vh;
     height: 100dvh;
-    padding: 14px 0;
+    padding: 18px 0 16px;
     overflow: hidden;
-    transition: width 0.25s ease, box-shadow 0.25s ease;
+    will-change: width;
+    -webkit-tap-highlight-color: transparent;
+    transition: width 0.28s var(--sb-ease), box-shadow 0.28s var(--sb-ease);
   }
   .sb.is-open {
     width: 260px;
-    padding: 20px 0 16px;
     box-shadow: 0 10px 40px rgba(11, 42, 107, 0.18);
   }
 
-  /* Logo (tertutup: hanya logo) */
-  .sb-brand { padding: 0; }
-  .sb-logo { width: 40px; margin: 0 auto; }
-  .sb-name, .sb-sub { display: none; }
-
-  .sb.is-open .sb-brand { padding: 0 12px; }
+  /* ---------- Logo ---------- */
+  .sb-brand { padding: 0; -webkit-tap-highlight-color: transparent; }
+  .sb-logo {
+    width: 40px;
+    margin: 0 auto;
+    transition: width 0.28s var(--sb-ease), margin 0.28s var(--sb-ease);
+  }
   .sb.is-open .sb-logo { width: 52px; margin: 0 auto 6px; }
-  .sb.is-open .sb-name,
-  .sb.is-open .sb-sub { display: block; }
 
-  /* Menu (tertutup: hanya ikon, rata tengah) */
+  /* Nama & subjudul: selalu ada, hanya mengembang + memudar */
+  .sb-name,
+  .sb-sub {
+    display: block;
+    max-height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    transition: max-height 0.28s var(--sb-ease), margin-top 0.28s var(--sb-ease), opacity 0.15s ease;
+  }
+  .sb.is-open .sb-name { max-height: 24px; opacity: 1; transition-delay: 0s, 0s, 0.1s; }
+  .sb.is-open .sb-sub  { max-height: 16px; margin-top: 2px; opacity: 1; transition-delay: 0s, 0s, 0.1s; }
+
+  /* ---------- Menu ---------- */
   .sb-nav {
     min-height: 0;
     margin-top: 20px;
-    padding: 0 12px;
+    padding: 0 12px;      /* tetap sama saat tertutup/terbuka */
     gap: 6px;
     overflow-x: hidden;
     overflow-y: auto;
   }
   .sb-item {
-    justify-content: center;
-    width: 44px; height: 44px;
-    margin: 0 auto;
-    padding: 0; gap: 0;
+    height: 44px;
+    padding: 0 12px;      /* ikon selalu di posisi yang sama */
+    gap: 12px;
+    justify-content: flex-start;
+    overflow: hidden;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
-  .sb-item span { display: none; }
+  .sb-item svg { flex-shrink: 0; }
   .sb-item.is-active::before { display: none; }
 
-  /* Menu (terbuka: ikon + teks di sampingnya) */
-  .sb.is-open .sb-nav { margin-top: 28px; padding: 0 16px; }
-  .sb.is-open .sb-item {
-    justify-content: flex-start;
-    width: auto; height: 40px;
-    margin: 0; padding: 0 12px; gap: 12px;
+  /* Teks menu: dipotong oleh lebar sidebar, lalu memudar masuk */
+  .sb-item span {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
   }
-  .sb.is-open .sb-item span { display: inline; }
+  .sb.is-open .sb-item span {
+    opacity: 1;
+    transition: opacity 0.2s ease 0.1s;
+  }
 
-  /* Profil selalu di dasar sidebar, tidak menempel ke menu */
+  /* ---------- Profil (selalu di dasar sidebar) ---------- */
   .sb-user {
-    flex-direction: column;
-    justify-content: center;
-    gap: 6px;
     margin-top: auto;
-    padding: 12px 0 0;
-  }
-  .sb-user-info { display: none; }
-
-  .sb.is-open .sb-user {
-    flex-direction: row;
-    justify-content: flex-start;
+    padding: 12px 16px 0 16px;   /* avatar tepat di tengah rel 68px */
     gap: 10px;
-    padding: 14px 16px 0 20px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid transparent;
+    transition: border-color 0.28s var(--sb-ease);
   }
-  .sb.is-open .sb-user-info { display: block; }
+  .sb.is-open .sb-user { border-top-color: #e2e8f0; }
 
-  /* Latar gelap saat sidebar melebar */
-  .sb-backdrop.is-open {
+  .sb-user-info {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .sb-logout {
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background 0.15s, color 0.15s;
+  }
+  .sb.is-open .sb-user-info {
+    opacity: 1;
+    transition: opacity 0.2s ease 0.1s;
+  }
+  .sb.is-open .sb-logout {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.2s ease 0.1s, background 0.15s, color 0.15s;
+  }
+
+  /* ---------- Latar gelap (fade, bukan muncul tiba-tiba) ---------- */
+  .sb-backdrop {
     display: block;
     position: fixed; inset: 0;
-    background: rgba(11, 42, 107, 0.32);
     z-index: 90;
+    background: rgba(11, 42, 107, 0.32);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.28s ease, visibility 0s linear 0.28s;
   }
+  .sb-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.28s ease;
+  }
+}
+
+/* Hormati pengaturan "kurangi gerakan" di HP */
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
+  .sb, .sb *, .sb-backdrop { transition: none !important; }
 }
