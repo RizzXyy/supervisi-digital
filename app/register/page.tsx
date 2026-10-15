@@ -7,17 +7,16 @@ import { Eye, EyeOff } from "lucide-react";
 import "./register.css";
 import { registerUser } from "../lib/auth";
 
-type Role = "guru" | "supervisor";
+type Role = "guru" | "kepala_sekolah";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({
     nama: "",
     email: "",
-    nip: "",
-    role: "guru" as Role,
     password: "",
-    konfirmasi: "",
+    role: "guru" as Role,
+    nip: "",
   });
   const [showPw, setShowPw] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
@@ -133,10 +132,10 @@ export default function RegisterPage() {
               <input
                 type="radio"
                 name="role"
-                checked={form.role === "supervisor"}
-                onChange={() => update("role", "supervisor")}
+                checked={form.role === "kepala_sekolah"}
+                onChange={() => update("role", "kepala_sekolah")}
               />
-              Supervisor
+              Kepala Sekolah
             </label>
           </fieldset>
 
