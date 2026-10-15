@@ -71,63 +71,93 @@
 /* ---------- Backdrop (mobile) ---------- */
 .sb-backdrop { display: none; }
 
-/* ---------- Mobile ---------- */
+/* =========================================================
+   Mobile: SATU sidebar vertikal (rel ikon).
+   Tertutup  = logo + ikon menu berjajar ke bawah (68px)
+   Diklik logo = melebar (260px), teks muncul di samping ikon
+   ========================================================= */
 @media (max-width: 860px) {
-  .dash-shell { grid-template-columns: 1fr; }
+  /* Konten digeser selebar rel ikon */
+  .dash-shell {
+    grid-template-columns: 1fr;
+    padding-left: 68px;
+  }
 
-  /* Bar tersembunyi: logo + ikon sejajar di sampingnya */
+  /* Sidebar selalu menempel di kiri, vertikal */
   .sb {
-    position: sticky; top: 0; z-index: 60;
-    flex-direction: row; align-items: center;
-    height: auto; padding: 8px 12px; gap: 8px;
-    border-right: 0; border-bottom: 1px solid #e2e8f0;
-    overflow: hidden;
-  }
-  .sb-brand {
-    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-    width: auto; padding: 0; text-align: left;
-  }
-  .sb-logo { width: 34px; margin: 0; }
-  .sb-name, .sb-sub, .sb-user-info { display: none; }
-  .sb-nav {
-    display: flex; flex: 1; align-items: center;
-    margin-top: 0; padding: 0; gap: 2px;
-    overflow-x: auto; align-content: center;
-  }
-  .sb-item { flex-shrink: 0; padding: 0 10px; }
-  .sb-item span { display: none; }
-  .sb-item.is-active::before { display: none; }
-  .sb-user { padding: 0; flex-shrink: 0; }
-
-  /* Panel melebar saat logo diklik */
-  .sb.is-open {
-    position: fixed; top: 0; left: 0; bottom: 0;
-    width: 260px; height: 100vh;
-    flex-direction: column; align-items: stretch;
-    padding: 24px 0 28px; gap: 0;
-    background: #f7f9fd;
-    border-right: 1px solid #e2e8f0;
-    box-shadow: 0 10px 40px rgba(11, 42, 107, 0.18);
-    overflow-y: auto;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
     z-index: 100;
+    width: 68px;
+    height: 100vh;
+    height: 100dvh;
+    padding: 14px 0;
+    overflow: hidden;
+    transition: width 0.25s ease, box-shadow 0.25s ease;
   }
-  .sb.is-open .sb-brand {
-    display: grid; justify-items: center;
-    width: 100%; padding: 0 12px; text-align: center;
+  .sb.is-open {
+    width: 260px;
+    padding: 20px 0 16px;
+    box-shadow: 0 10px 40px rgba(11, 42, 107, 0.18);
   }
+
+  /* Logo (tertutup: hanya logo) */
+  .sb-brand { padding: 0; }
+  .sb-logo { width: 40px; margin: 0 auto; }
+  .sb-name, .sb-sub { display: none; }
+
+  .sb.is-open .sb-brand { padding: 0 12px; }
   .sb.is-open .sb-logo { width: 52px; margin: 0 auto 6px; }
   .sb.is-open .sb-name,
   .sb.is-open .sb-sub { display: block; }
-  .sb.is-open .sb-nav {
-    display: grid; flex: none;
-    margin-top: 32px; padding: 0 20px 0 30px;
-    gap: 4px; overflow: visible;
-  }
-  .sb.is-open .sb-item { padding: 0 12px; }
-  .sb.is-open .sb-item span { display: inline; }
-  .sb.is-open .sb-user-info { display: block; }
-  .sb.is-open .sb-user { padding: 0 16px 0 32px; gap: 10px; }
 
+  /* Menu (tertutup: hanya ikon, rata tengah) */
+  .sb-nav {
+    min-height: 0;
+    margin-top: 20px;
+    padding: 0 12px;
+    gap: 6px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .sb-item {
+    justify-content: center;
+    width: 44px; height: 44px;
+    margin: 0 auto;
+    padding: 0; gap: 0;
+  }
+  .sb-item span { display: none; }
+  .sb-item.is-active::before { display: none; }
+
+  /* Menu (terbuka: ikon + teks di sampingnya) */
+  .sb.is-open .sb-nav { margin-top: 28px; padding: 0 16px; }
+  .sb.is-open .sb-item {
+    justify-content: flex-start;
+    width: auto; height: 40px;
+    margin: 0; padding: 0 12px; gap: 12px;
+  }
+  .sb.is-open .sb-item span { display: inline; }
+
+  /* Profil selalu di dasar sidebar, tidak menempel ke menu */
+  .sb-user {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    margin-top: auto;
+    padding: 12px 0 0;
+  }
+  .sb-user-info { display: none; }
+
+  .sb.is-open .sb-user {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 14px 16px 0 20px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .sb.is-open .sb-user-info { display: block; }
+
+  /* Latar gelap saat sidebar melebar */
   .sb-backdrop.is-open {
     display: block;
     position: fixed; inset: 0;

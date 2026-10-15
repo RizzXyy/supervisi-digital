@@ -83,13 +83,15 @@ export default function Sidebar() {
 
         <nav className="sb-nav" aria-label="Menu utama">
           {items.map(({ label, href, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`sb-item${isActive(href) ? " is-active" : ""}`}
-              aria-current={isActive(href) ? "page" : undefined}
-              onClick={() => setOpen(false)}
-            >
+                <Link
+                  key={href}
+                  href={href}
+                  title={label}
+                  aria-label={label}
+                  className={`sb-item${isActive(href) ? " is-active" : ""}`}
+                  aria-current={isActive(href) ? "page" : undefined}
+                  onClick={() => setOpen(false)}
+                >
               <Icon size={20} strokeWidth={1.8} />
               <span>{label}</span>
             </Link>
