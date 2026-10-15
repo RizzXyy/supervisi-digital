@@ -35,6 +35,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<Session | null>(null);
+  const [open, setOpen] = useState(false);
 
   // Cek login. Kalau belum login, kembali ke halaman login.
   useEffect(() => {
@@ -64,44 +65,59 @@ export default function Sidebar() {
   const items = MENU.filter((m) => !user || m.roles.includes(user.role));
 
   return (
-    <aside className="sb">
-      <div className="sb-brand">
-        <img src="/logo.png" alt="Logo Supervisi Digital" className="sb-logo" />
-        <div className="sb-name">
-          Supervisi <span>Digital</span>
-        </div>
-        <div className="sb-sub">Platform Supervisi &amp; Coaching Digital</div>
-      </div>
-
-      <nav className="sb-nav" aria-label="Menu utama">
-        {items.map(({ label, href, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`sb-item${isActive(href) ? " is-active" : ""}`}
-            aria-current={isActive(href) ? "page" : undefined}
-          >
-            <Icon size={20} strokeWidth={1.8} />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
-
-      <div className="sb-user">
-        <div className="sb-avatar" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="#0b2a6b">
-            <circle cx="12" cy="8" r="4.5" />
-            <path d="M3 21c0-4.4 4-7 9-7s9 2.6 9 7z" />
-          </svg>
-        </div>
-        <div className="sb-user-info">
-          <div className="sb-user-name">{user?.name ?? "..."}</div>
-          <div className="sb-user-role">{user ? ROLE_LABEL[user.role] : ""}</div>
-        </div>
-        <button type="button" className="sb-logout" onClick={handleLogout} aria-label="Keluar">
-          <LogOut size={18} />
+    <>
+      <aside className={`sb${open ? " is-open" : ""}`}>
+        <button
+          type="button"
+          className="sb-brand"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? "Tutup menu" : "Buka menu"}
+          aria-expanded={open}
+        >
+          <img src="/logo.png" alt="Logo Supervisi Digital" className="sb-logo" />
+          <div className="sb-name">
+            Supervisi <span>Digital</span>
+          </div>
+          <div className="sb-sub">Platform Supervisi &amp; Coaching Digital</div>
         </button>
-      </div>
-    </aside>
+
+        <nav className="sb-nav" aria-label="Menu utama">
+          {items.map(({ label, href, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`sb-item${isActive(href) ? " is-active" : ""}`}
+              aria-current={isActive(href) ? "page" : undefined}
+              onClick={() => setOpen(false)}
+            >
+              <Icon size={20} strokeWidth={1.8} />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <div className="sb-user">
+          <div className="sb-avatar" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#0b2a6b">
+              <circle cx="12" cy="8" r="4.5" />
+              <path d="M3 21c0-4.4 4-7 9-7s9 2.6 9 7z" />
+            </svg>
+          </div>
+          <div className="sb-user-info">
+            <div className="sb-user-name">{user?.name ?? "..."}</div>
+            <div className="sb-user-role">{user ? ROLE_LABEL[user.role] : ""}</div>
+          </div>
+          <button type="button" className="sb-logout" onClick={handleLogout} aria-label="Keluar">
+            <LogOut size={18} />
+          </button>
+        </div>
+      </aside>
+
+      <div
+        className={`sb-backdrop${open ? " is-open" : ""}`}
+        onClick={() => setOpen(false)}
+        aria-hidden="true"
+      />
+    </>
   );
 }

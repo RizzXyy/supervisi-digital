@@ -17,7 +17,17 @@
 }
 
 /* ---------- Brand ---------- */
-.sb-brand { padding: 0 12px; text-align: center; }
+.sb-brand {
+  display: block;
+  width: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
 .sb-logo { display: block; width: 52px; height: auto; margin: 0 auto 6px; }
 .sb-name { font-size: 16px; font-weight: 800; line-height: 1.2; color: #0b2a6b; }
 .sb-name span { color: #1a6cff; }
@@ -58,17 +68,70 @@
 .sb-logout { display: grid; place-items: center; padding: 6px; border: 0; border-radius: 8px; background: none; color: #7b9193; cursor: pointer; }
 .sb-logout:hover { background: #eef3fb; color: #dc2626; }
 
+/* ---------- Backdrop (mobile) ---------- */
+.sb-backdrop { display: none; }
+
 /* ---------- Mobile ---------- */
 @media (max-width: 860px) {
   .dash-shell { grid-template-columns: 1fr; }
+
+  /* Bar tersembunyi: logo + ikon sejajar di sampingnya */
   .sb {
-    position: static; flex-direction: row; align-items: center;
-    height: auto; padding: 10px 12px; gap: 12px;
-    border-right: 0; border-bottom: 1px solid #e2e8f0; overflow-x: auto;
+    position: sticky; top: 0; z-index: 60;
+    flex-direction: row; align-items: center;
+    height: auto; padding: 8px 12px; gap: 8px;
+    border-right: 0; border-bottom: 1px solid #e2e8f0;
+    overflow: hidden;
   }
-  .sb-brand, .sb-user-info, .sb-item span { display: none; }
-  .sb-nav { display: flex; flex: 1; margin-top: 0; padding: 0; gap: 4px; }
-  .sb-item { padding: 0 10px; }
+  .sb-brand {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    width: auto; padding: 0; text-align: left;
+  }
+  .sb-logo { width: 34px; margin: 0; }
+  .sb-name, .sb-sub, .sb-user-info { display: none; }
+  .sb-nav {
+    display: flex; flex: 1; align-items: center;
+    margin-top: 0; padding: 0; gap: 2px;
+    overflow-x: auto; align-content: center;
+  }
+  .sb-item { flex-shrink: 0; padding: 0 10px; }
+  .sb-item span { display: none; }
   .sb-item.is-active::before { display: none; }
-  .sb-user { padding: 0; }
+  .sb-user { padding: 0; flex-shrink: 0; }
+
+  /* Panel melebar saat logo diklik */
+  .sb.is-open {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 260px; height: 100vh;
+    flex-direction: column; align-items: stretch;
+    padding: 24px 0 28px; gap: 0;
+    background: #f7f9fd;
+    border-right: 1px solid #e2e8f0;
+    box-shadow: 0 10px 40px rgba(11, 42, 107, 0.18);
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .sb.is-open .sb-brand {
+    display: grid; justify-items: center;
+    width: 100%; padding: 0 12px; text-align: center;
+  }
+  .sb.is-open .sb-logo { width: 52px; margin: 0 auto 6px; }
+  .sb.is-open .sb-name,
+  .sb.is-open .sb-sub { display: block; }
+  .sb.is-open .sb-nav {
+    display: grid; flex: none;
+    margin-top: 32px; padding: 0 20px 0 30px;
+    gap: 4px; overflow: visible;
+  }
+  .sb.is-open .sb-item { padding: 0 12px; }
+  .sb.is-open .sb-item span { display: inline; }
+  .sb.is-open .sb-user-info { display: block; }
+  .sb.is-open .sb-user { padding: 0 16px 0 32px; gap: 10px; }
+
+  .sb-backdrop.is-open {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(11, 42, 107, 0.32);
+    z-index: 90;
+  }
 }
