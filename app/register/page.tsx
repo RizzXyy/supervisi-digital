@@ -15,6 +15,7 @@ export default function RegisterPage() {
     nama: "",
     email: "",
     password: "",
+    konfirmasi: "",
     role: "guru" as Role,
     nip: "",
   });
