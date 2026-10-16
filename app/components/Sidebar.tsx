@@ -5,11 +5,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   House,
+  Users,
   CalendarDays,
   ClipboardPen,
-  FolderKanban,
-  Users,
-  BrainCircuit,
+  MessagesSquare,
   ChartNoAxesCombined,
   FileText,
   LogOut,
@@ -20,11 +19,10 @@ import "./Sidebar.css";
 // roles = siapa yang boleh melihat menu itu. Ubah sesuai kebutuhan.
 const MENU: { label: string; href: string; icon: typeof House; roles: Role[] }[] = [
   { label: "Dashboard", href: "/dashboard", icon: House, roles: ["kepala_sekolah", "guru"] },
+  { label: "Data Guru", href: "/dashboard/data-guru", icon: Users, roles: ["kepala_sekolah"] },
   { label: "Jadwal Supervisi", href: "/dashboard/jadwal", icon: CalendarDays, roles: ["kepala_sekolah", "guru"] },
   { label: "Observasi", href: "/dashboard/observasi", icon: ClipboardPen, roles: ["kepala_sekolah"] },
-  { label: "E-Portofolio", href: "/dashboard/e-portofolio", icon: FolderKanban, roles: ["kepala_sekolah", "guru"] },
-  { label: "Micro-Coaching", href: "/dashboard/micro-coaching", icon: Users, roles: ["kepala_sekolah", "guru"] },
-  { label: "AI-Feedback", href: "/dashboard/ai-feedback", icon: BrainCircuit, roles: ["kepala_sekolah", "guru"] },
+  { label: "Micro-Coaching", href: "/dashboard/micro-coaching", icon: MessagesSquare, roles: ["kepala_sekolah", "guru"] },
   { label: "RTL Tracker", href: "/dashboard/rtl-tracker", icon: ChartNoAxesCombined, roles: ["kepala_sekolah", "guru"] },
   { label: "Laporan", href: "/dashboard/laporan", icon: FileText, roles: ["kepala_sekolah", "guru"] },
 ];
@@ -83,15 +81,15 @@ export default function Sidebar() {
 
         <nav className="sb-nav" aria-label="Menu utama">
           {items.map(({ label, href, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  title={label}
-                  aria-label={label}
-                  className={`sb-item${isActive(href) ? " is-active" : ""}`}
-                  aria-current={isActive(href) ? "page" : undefined}
-                  onClick={() => setOpen(false)}
-                >
+            <Link
+              key={href}
+              href={href}
+              title={label}
+              aria-label={label}
+              className={`sb-item${isActive(href) ? " is-active" : ""}`}
+              aria-current={isActive(href) ? "page" : undefined}
+              onClick={() => setOpen(false)}
+            >
               <Icon size={20} strokeWidth={1.8} />
               <span>{label}</span>
             </Link>
