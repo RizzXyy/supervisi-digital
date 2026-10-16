@@ -7,6 +7,7 @@ export type KategoriKey = "sangat-baik" | "baik" | "cukup" | "perlu-pembinaan";
 export type Teacher = {
   id: string;
   name: string;
+  nip: string; // 18 digit, boleh kosong untuk guru tanpa NIP
   mapel: string;
   kelas: string;
   score: number; // skor supervisi terakhir (0-100)
@@ -38,22 +39,55 @@ export function kategoriOf(score: number): KategoriKey {
 }
 
 export const TEACHERS: Teacher[] = [
-  { id: "t1", name: "Akhmad Subagja, S.Pd.", mapel: "Bahasa Indonesia", kelas: "Kelas 5A", score: 98 },
-  { id: "t2", name: "Fachry Adrul Mushlim, S.Pd", mapel: "Ilmu Pengetahuan Alam", kelas: "Kelas 6C", score: 96 },
-  { id: "t3", name: "Rizki Isma Ramadhani, S.Pd", mapel: "Pendidikan Agama Islam", kelas: "Kelas 5D", score: 95 },
-  { id: "t4", name: "Muhammad Abdul Halim, S.Pd", mapel: "Matematika", kelas: "Kelas 4B", score: 93 },
-  { id: "t5", name: "Siti Aminah, S.Pd", mapel: "Matematika", kelas: "Kelas 5A", score: 92 },
-  { id: "t6", name: "Budi Santoso, S.Pd", mapel: "Ilmu Pengetahuan Alam", kelas: "Kelas 6B", score: 89 },
-  { id: "t7", name: "Rina Wulandari, S.Pd", mapel: "Bahasa Indonesia", kelas: "Kelas 4C", score: 88 },
-  { id: "t8", name: "Dewi Lestari, S.Pd", mapel: "Ilmu Pengetahuan Sosial", kelas: "Kelas 5B", score: 87 },
-  { id: "t9", name: "Agus Prasetyo, S.Pd", mapel: "PJOK", kelas: "Kelas 6A", score: 86 },
-  { id: "t10", name: "Nur Hidayah, S.Pd", mapel: "Bahasa Inggris", kelas: "Kelas 4A", score: 79 },
-  { id: "t11", name: "Eko Wahyudi, S.Pd", mapel: "Seni Budaya", kelas: "Kelas 6D", score: 78 },
-  { id: "t12", name: "Yulia Rahma, S.Pd", mapel: "Pendidikan Pancasila", kelas: "Kelas 4D", score: 69 },
+  { id: "t1", nip: "198609262015051001", name: "Akhmad Subagja, S.Pd.", mapel: "Bahasa Indonesia", kelas: "Kelas 5A", score: 98 },
+  { id: "t2", nip: "198803152012011002", name: "Fachry Adrul Mushlim, S.Pd", mapel: "Ilmu Pengetahuan Alam", kelas: "Kelas 6C", score: 96 },
+  { id: "t3", nip: "199002102014021003", name: "Rizki Isma Ramadhani, S.Pd", mapel: "Pendidikan Agama Islam", kelas: "Kelas 5D", score: 95 },
+  { id: "t4", nip: "199104252015031004", name: "Muhammad Abdul Halim, S.Pd", mapel: "Matematika", kelas: "Kelas 4B", score: 93 },
+  { id: "t5", nip: "198507182010012005", name: "Siti Aminah, S.Pd", mapel: "Matematika", kelas: "Kelas 5A", score: 92 },
+  { id: "t6", nip: "198712042011011006", name: "Budi Santoso, S.Pd", mapel: "Ilmu Pengetahuan Alam", kelas: "Kelas 6B", score: 89 },
+  { id: "t7", nip: "199206302016022007", name: "Rina Wulandari, S.Pd", mapel: "Bahasa Indonesia", kelas: "Kelas 4C", score: 88 },
+  { id: "t8", nip: "199303122017032008", name: "Dewi Lestari, S.Pd", mapel: "Ilmu Pengetahuan Sosial", kelas: "Kelas 5B", score: 87 },
+  { id: "t9", nip: "198911082013011009", name: "Agus Prasetyo, S.Pd", mapel: "PJOK", kelas: "Kelas 6A", score: 86 },
+  { id: "t10", nip: "199408222018032010", name: "Nur Hidayah, S.Pd", mapel: "Bahasa Inggris", kelas: "Kelas 4A", score: 79 },
+  { id: "t11", nip: "199005172014021011", name: "Eko Wahyudi, S.Pd", mapel: "Seni Budaya", kelas: "Kelas 6D", score: 78 },
+  { id: "t12", nip: "199601292019032012", name: "Yulia Rahma, S.Pd", mapel: "Pendidikan Pancasila", kelas: "Kelas 4D", score: 69 },
 ];
 
+// Penyimpanan sementara di browser (localStorage) supaya Tambah/Edit Guru
+// langsung tercermin di dashboard. Nanti ganti dengan Supabase.
+const STORAGE_KEY = "supervisi.teachers.v1";
+
+export function loadTeachers(): Teacher[] {
+  if (typeof window === "undefined") return TEACHERS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as Teacher[];
+    }
+  } catch {
+    /* abaikan, pakai data contoh */
+  }
+  return TEACHERS;
+}
+
+export function saveTeachers(list: Teacher[]) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    /* penyimpanan penuh atau diblokir */
+  }
+}
+
 export function teacherById(id: string): Teacher | undefined {
-  return TEACHERS.find((t) => t.id === id);
+  return loadTeachers().find((t) => t.id === id);
+}
+
+// 198609262015051001 -> 19860926 201505 1 001
+export function formatNip(nip: string) {
+  const n = nip.replace(/\s/g, "");
+  if (!/^\d{18}$/.test(n)) return nip || "-";
+  return `${n.slice(0, 8)} ${n.slice(8, 14)} ${n.slice(14, 15)} ${n.slice(15)}`;
 }
 
 // ---------- Tanggal ----------
@@ -121,6 +155,7 @@ export function getRtl(): Rtl[] {
 
 // ---------- Ringkasan untuk dashboard ----------
 export function getDashboard() {
+  const teachers = loadTeachers();
   const today = startOfToday();
   const now = new Date();
   const supervisions = getSupervisions();
@@ -137,7 +172,7 @@ export function getDashboard() {
     .filter((s) => s.status === "terjadwal" && s.date >= today)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  const rataSkor = TEACHERS.reduce((sum, t) => sum + t.score, 0) / TEACHERS.length;
+  const rataSkor = teachers.length ? teachers.reduce((sum, t) => sum + t.score, 0) / teachers.length : 0;
 
   // Grafik: 3 bulan sebelumnya (contoh) + bulan ini = rata-rata skor sekarang
   const m = now.getMonth();
@@ -148,13 +183,13 @@ export function getDashboard() {
   }));
 
   const kinerja = KATEGORI.map((k) => {
-    const count = TEACHERS.filter((t) => kategoriOf(t.score) === k.key).length;
-    return { ...k, count, percent: Math.round((count / TEACHERS.length) * 100) };
+    const count = teachers.filter((t) => kategoriOf(t.score) === k.key).length;
+    return { ...k, count, percent: teachers.length ? Math.round((count / teachers.length) * 100) : 0 };
   });
 
   return {
     stats: {
-      totalGuru: TEACHERS.length,
+      totalGuru: teachers.length,
       selesaiBulanIni,
       rtlAktif: rtl.filter((r) => r.status === "aktif").length,
       rataSkor: Math.round(rataSkor * 10) / 10,
