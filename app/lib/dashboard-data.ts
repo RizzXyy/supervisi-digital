@@ -1,0 +1,168 @@
+// Data dashboard (contoh). Semua angka di dashboard DIHITUNG dari data di sini,
+// jadi kalau data berubah, kartu, grafik, dan ringkasan ikut berubah.
+// Nanti tinggal ganti TEACHERS / getSupervisions() / getRtl() dengan query Supabase.
+
+export type KategoriKey = "sangat-baik" | "baik" | "cukup" | "perlu-pembinaan";
+
+export type Teacher = {
+  id: string;
+  name: string;
+  mapel: string;
+  kelas: string;
+  score: number; // skor supervisi terakhir (0-100)
+};
+
+export type Supervision = {
+  id: string;
+  teacherId: string;
+  date: Date;
+  time: string;
+  status: "terjadwal" | "selesai";
+};
+
+export type Rtl = { id: string; teacherId: string; status: "aktif" | "selesai" };
+
+const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+// Kategori kinerja berdasarkan skor
+export const KATEGORI: { key: KategoriKey; label: string; min: number; color: string }[] = [
+  { key: "sangat-baik", label: "Sangat Baik", min: 90, color: "#15803d" },
+  { key: "baik", label: "Baik", min: 80, color: "#2563eb" },
+  { key: "cukup", label: "Cukup", min: 70, color: "#f59e0b" },
+  { key: "perlu-pembinaan", label: "Perlu Pembinaan", min: 0, color: "#ef4444" },
+];
+
+export function kategoriOf(score: number): KategoriKey {
+  return (KATEGORI.find((k) => score >= k.min) ?? KATEGORI[KATEGORI.length - 1]).key;
+}
+
+export const TEACHERS: Teacher[] = [
+  { id: "t1", name: "Akhmad Subagja, S.Pd.", mapel: "Bahasa Indonesia", kelas: "Kelas 5A", score: 98 },
+  { id: "t2", name: "Fachry Adrul Mushlim, S.Pd", mapel: "Ilmu Pengetahuan Alam", kelas: "Kelas 6C", score: 96 },
+  { id: "t3", name: "Rizki Isma Ramadhani, S.Pd", mapel: "Pendidikan Agama Islam", kelas: "Kelas 5D", score: 95 },
+  { id: "t4", name: "Muhammad Abdul Halim, S.Pd", mapel: "Matematika", kelas: "Kelas 4B", score: 93 },
+  { id: "t5", name: "Siti Aminah, S.Pd", mapel: "Matematika", kelas: "Kelas 5A", score: 92 },
+  { id: "t6", name: "Budi Santoso, S.Pd", mapel: "Ilmu Pengetahuan Alam", kelas: "Kelas 6B", score: 89 },
+  { id: "t7", name: "Rina Wulandari, S.Pd", mapel: "Bahasa Indonesia", kelas: "Kelas 4C", score: 88 },
+  { id: "t8", name: "Dewi Lestari, S.Pd", mapel: "Ilmu Pengetahuan Sosial", kelas: "Kelas 5B", score: 87 },
+  { id: "t9", name: "Agus Prasetyo, S.Pd", mapel: "PJOK", kelas: "Kelas 6A", score: 86 },
+  { id: "t10", name: "Nur Hidayah, S.Pd", mapel: "Bahasa Inggris", kelas: "Kelas 4A", score: 79 },
+  { id: "t11", name: "Eko Wahyudi, S.Pd", mapel: "Seni Budaya", kelas: "Kelas 6D", score: 78 },
+  { id: "t12", name: "Yulia Rahma, S.Pd", mapel: "Pendidikan Pancasila", kelas: "Kelas 4D", score: 69 },
+];
+
+export function teacherById(id: string): Teacher | undefined {
+  return TEACHERS.find((t) => t.id === id);
+}
+
+// ---------- Tanggal ----------
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// Tambah n hari kerja (Sen-Jum) supaya jadwal tidak jatuh di weekend
+function addWorkdays(base: Date, n: number) {
+  const d = new Date(base);
+  let left = n;
+  while (left > 0) {
+    d.setDate(d.getDate() + 1);
+    const w = d.getDay();
+    if (w !== 0 && w !== 6) left--;
+  }
+  return d;
+}
+
+export function formatTanggal(d: Date) {
+  return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ---------- Jadwal, RTL ----------
+export function getSupervisions(): Supervision[] {
+  const today = startOfToday();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+
+  // 5 supervisi selesai di bulan berjalan
+  const done: Supervision[] = ["t5", "t6", "t7", "t8", "t9"].map((teacherId, i) => ({
+    id: `s-done-${i + 1}`,
+    teacherId,
+    date: new Date(y, m, i + 1),
+    time: "08.00 - 09.30",
+    status: "selesai",
+  }));
+
+  // 4 jadwal mendatang (selalu di depan hari ini)
+  const upcoming: Supervision[] = [
+    { id: "s-up-1", teacherId: "t1", date: addWorkdays(today, 1), time: "08.00 - 09.30", status: "terjadwal" },
+    { id: "s-up-2", teacherId: "t2", date: addWorkdays(today, 2), time: "09.30 - 11.00", status: "terjadwal" },
+    { id: "s-up-3", teacherId: "t3", date: addWorkdays(today, 5), time: "08.00 - 09.30", status: "terjadwal" },
+    { id: "s-up-4", teacherId: "t4", date: addWorkdays(today, 6), time: "08.00 - 09.30", status: "terjadwal" },
+  ];
+
+  return [...done, ...upcoming];
+}
+
+export function getRtl(): Rtl[] {
+  const aktif: Rtl[] = ["t5", "t6", "t7", "t8", "t9", "t10", "t11", "t12"].map((teacherId, i) => ({
+    id: `r-aktif-${i + 1}`,
+    teacherId,
+    status: "aktif",
+  }));
+  const selesai: Rtl[] = ["t1", "t2"].map((teacherId, i) => ({
+    id: `r-selesai-${i + 1}`,
+    teacherId,
+    status: "selesai",
+  }));
+  return [...aktif, ...selesai];
+}
+
+// ---------- Ringkasan untuk dashboard ----------
+export function getDashboard() {
+  const today = startOfToday();
+  const now = new Date();
+  const supervisions = getSupervisions();
+  const rtl = getRtl();
+
+  const selesaiBulanIni = supervisions.filter(
+    (s) =>
+      s.status === "selesai" &&
+      s.date.getMonth() === now.getMonth() &&
+      s.date.getFullYear() === now.getFullYear(),
+  ).length;
+
+  const upcoming = supervisions
+    .filter((s) => s.status === "terjadwal" && s.date >= today)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const rataSkor = TEACHERS.reduce((sum, t) => sum + t.score, 0) / TEACHERS.length;
+
+  // Grafik: 3 bulan sebelumnya (contoh) + bulan ini = rata-rata skor sekarang
+  const m = now.getMonth();
+  const earlier = [48, 57, 63];
+  const trend = [3, 2, 1, 0].map((back, i) => ({
+    label: BULAN[(m - back + 12) % 12],
+    value: i === 3 ? Math.round(rataSkor * 10) / 10 : earlier[i],
+  }));
+
+  const kinerja = KATEGORI.map((k) => {
+    const count = TEACHERS.filter((t) => kategoriOf(t.score) === k.key).length;
+    return { ...k, count, percent: Math.round((count / TEACHERS.length) * 100) };
+  });
+
+  return {
+    stats: {
+      totalGuru: TEACHERS.length,
+      selesaiBulanIni,
+      rtlAktif: rtl.filter((r) => r.status === "aktif").length,
+      rataSkor: Math.round(rataSkor * 10) / 10,
+    },
+    upcoming,
+    trend,
+    kinerja,
+  };
+}
+
+export type DashboardData = ReturnType<typeof getDashboard>;
