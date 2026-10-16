@@ -40,7 +40,7 @@ function fmt(v: number) {
 function ScoreChart({ data }: { data: { label: string; value: number }[] }) {
   const [active, setActive] = useState(data.length - 1);
 
-  const W = 360, H = 210, L = 34, R = 12, T = 30, B = 28;
+  const W = 420, H = 210, L = 34, R = 12, T = 30, B = 28;
   const plotW = W - L - R;
   const plotH = H - T - B;
   const slot = plotW / data.length;
@@ -51,7 +51,13 @@ function ScoreChart({ data }: { data: { label: string; value: number }[] }) {
   const a = data[active];
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="dbd-chart" role="group" aria-label="Grafik skor supervisi per bulan">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="dbd-chart"
+      role="group"
+      aria-label="Grafik skor supervisi per bulan"
+      onMouseLeave={() => setActive(data.length - 1)}
+    >
       {ticks.map((t) => (
         <g key={t}>
           <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#eef1f6" />

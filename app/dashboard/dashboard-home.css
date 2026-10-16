@@ -1,17 +1,30 @@
+/* Area konten putih penuh. Layout memakai <main className="main">, jadi padding,
+   lebar maksimum, dan latar abu-abu dari .main lama dinetralkan di sini.
+   Jarak halaman sudah diatur oleh .dbd sendiri. */
+body:has(.dbd) { background: #fff; }
+.dash-shell:has(.dbd) { background: #fff; }
+.dash-shell:has(.dbd) > .main {
+  width: auto;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
 .dbd {
   --ink: #0f172a;
   --muted: #6b7a90;
   --sage: #6b8c8e;
   --line: #e6ebf3;
   --blue: #2b6fe6;
-  min-height: 100vh;
   padding: 20px 24px 36px;
   background: #fff;
   color: var(--ink);
 }
 .dbd *, .dbd *::before, .dbd *::after { box-sizing: border-box; }
-.dbd h1, .dbd h2, .dbd h3, .dbd p, .dbd ul, .dbd dl, .dbd dd { margin: 0; padding: 0; }
-.dbd ul { list-style: none; }
+:where(.dbd) :where(h1, h2, h3, p, ul, dl, dd) { margin: 0; padding: 0; }
+:where(.dbd) :where(ul) { list-style: none; }
 .dbd-loading { font-size: 14px; color: var(--muted); }
 
 /* ---------- Banner sambutan ---------- */
@@ -66,9 +79,10 @@
   grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
   gap: 16px;
   margin-top: 20px;
-  align-items: start;
+  align-items: stretch;
 }
-.dbd-side { display: grid; gap: 16px; }
+.dbd-main > .dbd-card { display: flex; flex-direction: column; }
+.dbd-side { display: grid; gap: 16px; align-content: start; }
 
 .dbd-card {
   padding: 16px 18px 18px;
@@ -83,11 +97,11 @@
   font-size: 12px; font-weight: 600; color: var(--ink); text-decoration: none;
 }
 .dbd-more:hover { color: var(--blue); }
-.dbd-empty { margin-top: 14px; font-size: 13px; color: var(--muted); }
+.dbd-empty { margin-top: 16px; font-size: 13px; color: var(--muted); }
 .dbd-empty a { font-weight: 600; color: var(--blue); }
 
 /* ---------- Jadwal ---------- */
-.dbd-sched { display: grid; gap: 12px; margin-top: 14px; }
+.dbd-sched { display: grid; gap: 12px; align-content: start; margin-top: 16px; }
 .dbd-sched-item {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr) auto;
@@ -119,15 +133,15 @@
 .dbd-detail-btn:hover { background: #dbe8ff; }
 
 /* ---------- Grafik ---------- */
-.dbd-chart { display: block; width: 100%; height: auto; margin-top: 8px; }
+.dbd-chart { display: block; width: 100%; height: auto; max-height: 250px; margin-top: 12px; }
 .dbd-chart rect[tabindex] { cursor: pointer; outline: none; }
 .dbd-chart rect[tabindex]:focus-visible { stroke: var(--blue); stroke-width: 1.5; }
 
 /* ---------- Ringkasan kinerja ---------- */
-.dbd-kinerja { display: grid; gap: 14px; margin-top: 14px; }
+.dbd-kinerja { display: grid; gap: 16px; margin-top: 16px; }
 .dbd-kinerja-row {
   display: grid;
-  grid-template-columns: 28px 78px minmax(0, 1fr);
+  grid-template-columns: 28px 112px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   color: inherit;
@@ -135,7 +149,7 @@
 }
 .dbd-kinerja-row:hover .dbd-kinerja-label { color: var(--blue); }
 .dbd-kinerja-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; }
-.dbd-kinerja-label { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.dbd-kinerja-label { font-size: 12.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
 .dbd-kinerja-bar { display: grid; gap: 3px; }
 .dbd-kinerja-bar small { font-size: 10.5px; color: var(--ink); }
 .dbd-track { display: block; height: 7px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
