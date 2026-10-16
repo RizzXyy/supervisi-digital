@@ -1,59 +1,70 @@
-.js{--js-surface:#fff;--js-ink:#1f2a3c;--js-mute:#6b7788;--js-line:#e3e8f0;--js-brand:#1769d6;--js-soft:#e8f1fc;--js-today:#f05a28;
---js-ok:#1e8a5a;--js-ok-bg:#dff3e8;--js-wait:#c77a0a;--js-wait-bg:#fdecd0;--js-plan:#2f5fb3;--js-plan-bg:#dde8fb;
-color:var(--js-ink);font-size:14px}
-.js *{box-sizing:border-box}
-.js button,.js input,.js select{font:inherit;color:inherit}
-@media (prefers-color-scheme:dark){.js{--js-surface:#171e29;--js-ink:#e8edf5;--js-mute:#93a0b3;--js-line:#283243;--js-brand:#4b9bff;--js-soft:#1b2c45;
---js-ok:#59d39b;--js-ok-bg:#16382b;--js-wait:#f0b14f;--js-wait-bg:#3d2d10;--js-plan:#8db5ff;--js-plan-bg:#1d2e4f}}
+/* Semua selector dibatasi di .jo supaya tidak bentrok dengan globals.css */
+.jo{--navy:#0b2230;--ink:#4a5562;--mute:#8a96a3;--brand:#0a5cf5;--today:#f04a1e;--field:#84a0a6;
+--ok:#2fa56f;--wait:#f59e0b;--plan:#3b82f6;color:var(--navy);padding:8px 4px}
+.jo *{box-sizing:border-box}
+.jo button,.jo input,.jo select{font:inherit;color:inherit}
 
-.js-loading{color:var(--js-mute);padding:24px 0}
-.js-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
-.js-header h1{margin:0;font-size:26px;letter-spacing:-.01em}
-.js-btn{background:var(--js-brand);color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer}
-.js-btn.js-ghost{background:none;color:var(--js-ink);border:1px solid var(--js-line)}
-.js-layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}
-.js-card{background:var(--js-surface);border:1px solid var(--js-line);border-radius:14px;padding:22px}
-.js-card h3{margin:0 0 14px;font-size:16px}
+.jo-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:36px}
+.jo-header h1{margin:0;font-size:28px;font-weight:800;color:var(--navy)}
+.jo-btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#fff;border:0;border-radius:10px;padding:11px 20px;font-weight:700;cursor:pointer}
+.jo-btn.jo-ghost{background:none;color:var(--navy);border:1px solid #d5dce5}
 
-.js-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.js-cal-head h2{margin:0;font-size:22px}
-.js-nav{display:flex;gap:6px}
-.js-nav button{border:1px solid var(--js-line);background:var(--js-surface);width:38px;height:38px;border-radius:8px;cursor:pointer;font-size:18px}
-.js-nav .js-today{width:auto;padding:0 14px;font-size:13px;font-weight:600}
-.js-dow,.js-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
-.js-dow div{text-align:center;color:var(--js-mute);font-weight:600;padding:8px 0;font-size:13px}
-.js-day{min-height:104px;border:1px solid var(--js-line);border-radius:10px;background:var(--js-surface);padding:8px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px;overflow:hidden}
-.js-day:hover{border-color:var(--js-brand)}
-.js-out{opacity:.4}
-.js-num{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;font-size:16px;font-weight:600}
-.js-now .js-num{background:var(--js-today);color:#fff}
-.js-sel{outline:2px solid var(--js-brand);outline-offset:-2px;background:var(--js-soft)}
-.js-chip{font-size:11px;line-height:1.3;padding:3px 6px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.js-berlangsung{background:var(--js-ok-bg);color:var(--js-ok)}
-.js-menunggu{background:var(--js-wait-bg);color:var(--js-wait)}
-.js-terjadwal{background:var(--js-plan-bg);color:var(--js-plan)}
-.js-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;color:var(--js-mute);font-size:12px}
-.js-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.jo-layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:48px;align-items:center}
 
-.js-field{width:100%;border:1px solid var(--js-line);border-radius:8px;padding:10px 12px;background:var(--js-surface);margin:4px 0 10px}
-.js-field.js-brand{border:1.5px solid var(--js-brand);margin:0 0 10px}
-.js-filt{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:var(--js-mute);font-size:12px}
-.js-filt button{background:none;border:0;color:var(--js-brand);cursor:pointer;font-weight:600}
-.js-list{display:flex;flex-direction:column;gap:10px;margin-top:14px;max-height:560px;overflow:auto}
-.js-item{border:1px solid var(--js-line);border-radius:10px;padding:12px 14px}
-.js-top{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:13px}
-.js-time{color:var(--js-mute);font-size:12px;margin:2px 0 8px}
-.js-nm{font-weight:700}
-.js-cl{color:var(--js-mute);font-size:12px}
-.js-badge{font-size:11px;padding:3px 9px;border-radius:999px;font-weight:700}
-.js-empty{color:var(--js-mute);text-align:center;padding:24px 8px}
+/* Kalender: kartu putih dengan bayangan lembut, angka besar tanpa garis kotak */
+.jo-cal{background:#fff;border-radius:16px;padding:28px 32px 22px;box-shadow:0 12px 36px rgba(15,35,70,.14);width:100%;max-width:640px;justify-self:center}
+.jo-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.jo-cal-head h2{margin:0;font-size:18px;font-weight:600;color:var(--ink)}
+.jo-cal-head button{background:none;border:0;color:var(--mute);width:40px;height:40px;border-radius:50%;cursor:pointer;display:grid;place-items:center}
+.jo-cal-head button:hover{background:#f1f5fb;color:var(--navy)}
+.jo-dow,.jo-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:4px}
+.jo-dow div{text-align:center;color:var(--mute);font-size:11px;font-weight:600;letter-spacing:.12em;padding:6px 0 14px}
+.jo-day{height:66px;border:0;background:none;border-radius:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--ink)}
+.jo-day:hover{background:#f1f5fb}
+.jo-num{width:42px;height:42px;display:grid;place-items:center;border-radius:50%;font-size:20px;font-weight:500}
+.jo-now .jo-num{background:var(--today);color:#fff;font-weight:700}
+.jo-sel .jo-num{background:#dbe8ff;color:#1d4ed8;font-weight:700}
+.jo-sel.jo-now .jo-num{background:var(--today);color:#fff;box-shadow:0 0 0 3px #dbe8ff}
+.jo-dots{display:flex;gap:4px;height:6px}
+.jo-dots i,.jo-legend i{display:inline-block;width:6px;height:6px;border-radius:50%}
+.jo-dots .jo-berlangsung,.jo-legend .jo-berlangsung{background:var(--ok)}
+.jo-dots .jo-menunggu,.jo-legend .jo-menunggu{background:var(--wait)}
+.jo-dots .jo-terjadwal,.jo-legend .jo-terjadwal{background:var(--plan)}
+.jo-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid #edf1f6}
+.jo-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.jo-legend i{margin-right:6px;vertical-align:1px}
+.jo-link{background:none;border:0;color:var(--brand);font-weight:600;font-size:13px;cursor:pointer}
 
-.js-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:16px}
-.js-modal{background:var(--js-surface);border:1px solid var(--js-line);border-radius:14px;padding:22px;width:min(400px,100%);max-height:100%;overflow:auto}
-.js-modal h3{margin:0 0 14px}
-.js-modal label{display:block;font-size:12px;color:var(--js-mute)}
-.js-row{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
-.js :focus-visible{outline:2px solid var(--js-brand);outline-offset:2px}
+/* Panel kanan */
+.jo-panel{background:#fff;border-radius:14px;padding:28px 26px;box-shadow:0 8px 28px rgba(15,35,70,.16)}
+.jo-panel h3{margin:0 0 16px;font-size:15px;font-weight:700}
+.jo-input{display:flex;align-items:center;gap:10px;height:46px;border:2px solid var(--field);border-radius:10px;padding:0 14px;margin-bottom:12px;color:var(--field);background:#fff}
+.jo-input input,.jo-input select{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#5b6b72;font-size:15px;font-weight:500;appearance:none}
+.jo-input input::placeholder{color:var(--field)}
+.jo-input:focus-within{border-color:var(--brand)}
+.jo-select{color:#111}
+.jo-select select{padding-left:8px;cursor:pointer}
+.jo-filt{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin:2px 0 6px}
+.jo-filt button{background:none;border:0;color:var(--brand);font-weight:600;cursor:pointer}
+.jo-list{display:flex;flex-direction:column;gap:12px;margin-top:20px;max-height:520px;overflow:auto;padding:2px 4px 8px}
+.jo-item{background:#fff;border-radius:8px;padding:12px 14px 14px;box-shadow:0 2px 8px rgba(15,35,70,.16)}
+.jo-top{display:flex;justify-content:space-between;align-items:flex-start;font-size:12px}
+.jo-time{font-size:12px;margin:2px 0 12px}
+.jo-meta{font-size:11.5px;line-height:1.55;color:#222}
+.jo-badge{font-size:9.5px;font-weight:600;padding:3px 10px;border-radius:5px;box-shadow:0 2px 3px rgba(0,0,0,.12)}
+.jo-badge.jo-berlangsung{background:#d6efe3;color:#1f7a52}
+.jo-badge.jo-menunggu{background:#fde6c8;color:#e8821a}
+.jo-badge.jo-terjadwal{background:#d6e4fb;color:#1f4e9e}
+.jo-empty{color:var(--mute);text-align:center;padding:24px 8px;font-size:13px}
 
-@media (max-width:1180px){.js-layout{grid-template-columns:1fr}.js-list{max-height:none}}
-@media (max-width:760px){.js-day{min-height:64px;padding:4px}.js-num{width:24px;height:24px;font-size:13px}.js-chip{font-size:0;padding:0;height:6px;border-radius:3px}}
+/* Form buat jadwal */
+.jo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:16px}
+.jo-modal{background:#fff;border-radius:14px;padding:24px;width:min(400px,100%);max-height:100%;overflow:auto}
+.jo-modal h3{margin:0 0 14px}
+.jo-modal label{display:block;font-size:12px;color:var(--mute)}
+.jo-field{width:100%;border:1px solid #d5dce5;border-radius:8px;padding:10px 12px;background:#fff;margin:4px 0 10px}
+.jo-row{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+.jo :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+@media (max-width:1180px){.jo-layout{grid-template-columns:1fr;align-items:start;gap:28px}.jo-cal{max-width:none}.jo-list{max-height:none}}
+@media (max-width:640px){.jo-cal{padding:18px 12px}.jo-day{height:50px}.jo-num{width:34px;height:34px;font-size:16px}.jo-header h1{font-size:22px}}
