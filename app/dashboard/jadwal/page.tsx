@@ -24,6 +24,10 @@ import "../dashboard-home.css";
 
 const HARI_SINGKAT = ["MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB"];
 
+// Nilai awal netral. Tanggal sebenarnya diisi di useEffect agar tidak membaca
+// waktu saat prerender (menghindari error "unstable value new Date()").
+const VIEW_AWAL = { y: 2026, m: 0 };
+
 type FormState = { teacherId: string; date: string; start: string; end: string; mapel: string; kelas: string };
 type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
@@ -31,12 +35,9 @@ export default function JadwalPage() {
   const [sups, setSups] = useState<Supervision[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
-  const [now, setNow] = useState<Date>(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
-  const [view, setView] = useState(() => {
-    const d = new Date();
-    return { y: d.getFullYear(), m: d.getMonth() };
-  });
+  const [view, setView] = useState(VIEW_AWAL);
   const [selected, setSelected] = useState<string | null>(null); // "YYYY-MM-DD"
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"semua" | StatusJadwal>("semua");
@@ -47,10 +48,14 @@ export default function JadwalPage() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   useEffect(() => {
-    setSups(getSupervisions());
-    setTeachers(loadTeachers());
-    setNow(new Date());
-    setReady(true);
+    queueMicrotask(() => {
+      const d = new Date();
+      setSups(getSupervisions());
+      setTeachers(loadTeachers());
+      setNow(d);
+      setView({ y: d.getFullYear(), m: d.getMonth() });
+      setReady(true);
+    });
   }, []);
 
   // Segarkan status (Sedang Berlangsung / Menunggu) setiap menit
@@ -70,7 +75,7 @@ export default function JadwalPage() {
   const nameMap = useMemo(() => new Map(teachers.map((t) => [t.id, t.name])), [teachers]);
   const nameOf = (id: string) => nameMap.get(id) ?? "-";
 
-  const withStatus = useMemo(() => sups.map((s) => ({ s, st: statusOf(s, now) })), [sups, now]);
+  const withStatus = useMemo(() => sups.map((s) => ({ s, st: statusOf(s, now ?? undefined) })), [sups, now]);
 
   const selesaiCount = withStatus.filter((x) => x.st === "selesai").length;
   const mendatangCount = withStatus.length - selesaiCount;
@@ -112,7 +117,7 @@ export default function JadwalPage() {
     ...Array.from({ length: first.getDay() }, () => null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
-  const todayKey = toDateKey(now);
+  const todayKey = now ? toDateKey(now) : "";
 
   function shiftMonth(delta: number) {
     const d = new Date(view.y, view.m + delta, 1);
@@ -121,6 +126,7 @@ export default function JadwalPage() {
   }
 
   function goToday() {
+    if (!now) return;
     setView({ y: now.getFullYear(), m: now.getMonth() });
     setSelected(null);
   }
@@ -222,7 +228,7 @@ export default function JadwalPage() {
     setModal(null);
   }
 
-  if (!ready) {
+  if (!ready || !now) {
     return (
       <div className="dbd">
         <p className="dbd-loading">Memuat jadwal...</p>

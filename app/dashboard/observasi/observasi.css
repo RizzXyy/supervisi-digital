@@ -1,0 +1,162 @@
+/* Gaya khusus halaman Observasi. Dasar (.dbd, .dg-*, .jd-*, .dbd-modal) ada di ../dashboard-home.css */
+
+.tone-red { background: #fdecec; }
+.tone-red .dbd-stat-title, .tone-red .dbd-stat-icon { color: #dc2626; }
+
+.dg-field textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid #cbd5e1; border-radius: 10px;
+  font: inherit; font-size: 14px; font-weight: 400; color: var(--ink);
+  line-height: 1.5; resize: vertical; outline: none;
+}
+.dg-field textarea:focus { border-color: #1a6cff; box-shadow: 0 0 0 3px rgba(26, 108, 255, 0.15); }
+
+/* ---------- Daftar ---------- */
+.ob-card { margin-top: 20px; padding: 18px 20px 20px; border-radius: 14px; background: #fff; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.09); }
+.ob-filter { display: grid; grid-template-columns: minmax(0, 1fr) 180px 180px; gap: 12px; align-items: center; }
+.ob-filter .dg-search { flex: none; width: 100%; }
+.ob-filter .jd-select { margin-top: 0; }
+.ob-title { display: flex; align-items: center; gap: 8px; margin-top: 20px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.ob-title svg { color: var(--blue); }
+.ob-table { min-width: 720px; }
+.ob-table .dg-aksi { width: 150px; }
+.ob-guru { display: inline-flex; align-items: center; gap: 10px; }
+.ob-avatar {
+  display: inline-grid; place-items: center; flex: none;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #dde8fb; font-size: 11px; font-weight: 700; color: #1a6cff;
+}
+.ob-avatar.is-lg { width: 56px; height: 56px; font-size: 18px; }
+.ob-aksi { display: inline-flex; align-items: center; gap: 8px; }
+.ob-aksi .dbd-detail-btn { padding: 5px 14px; }
+.ob-trash { color: #dc2626; }
+.ob-trash:hover { background: #fef2f2; border-color: #fecaca; }
+.ob-del { margin-right: 0; height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+
+/* ---------- Breadcrumb ---------- */
+.ob-crumb { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 12px; color: var(--muted); }
+.ob-crumb button { padding: 0; border: 0; background: none; font: inherit; color: var(--blue); cursor: pointer; }
+.ob-crumb button:hover { text-decoration: underline; }
+
+/* ---------- Form ---------- */
+.ob-form { max-width: 760px; }
+.ob-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
+.ob-steps li {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 12px; color: var(--muted);
+}
+.ob-step-no {
+  display: grid; place-items: center; flex: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #e8edf2; font-size: 11px; font-weight: 700; color: #5f7678;
+}
+.ob-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-steps li.is-on { border-color: #9bbcf5; background: #fff; box-shadow: 0 2px 8px rgba(26, 108, 255, 0.12); color: var(--ink); font-weight: 600; }
+.ob-steps li.is-on .ob-step-no { background: #1a6cff; color: #fff; }
+.ob-steps li.is-done .ob-step-no { background: #16a34a; color: #fff; }
+
+.ob-panel { margin-top: 16px; padding: 18px 20px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fafbfd; }
+.ob-panel > h2 { font-size: 15px; font-weight: 700; }
+.ob-panel .dg-form { margin-top: 14px; }
+.ob-panel .dbd-detail { margin-top: 14px; }
+.ob-hint { margin: 8px 0 12px; font-size: 12.5px; color: var(--muted); }
+.ob-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.ob-form .dg-error { margin-top: 14px; }
+
+/* Akordeon bagian instrumen */
+.ob-acc { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+.ob-acc-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  padding: 12px 14px; border: 0; background: #fff;
+  font: inherit; font-size: 13px; color: var(--ink); text-align: left; cursor: pointer;
+}
+.ob-acc-head:hover { background: #f6f9ff; }
+.ob-acc-head:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.ob-acc-head span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.ob-acc-head svg { transition: transform 0.15s; }
+.ob-acc-head svg.is-open { transform: rotate(180deg); }
+
+.ob-butir-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.ob-butir-list li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px;
+  padding: 12px 14px; border-bottom: 1px solid var(--line);
+}
+.ob-butir-list li:last-child { border-bottom: 0; }
+.ob-butir-teks { display: flex; gap: 10px; font-size: 13px; line-height: 1.4; }
+.ob-butir-teks span { flex: none; width: 18px; color: var(--muted); }
+.ob-pilih { display: inline-flex; gap: 8px; }
+.ob-pilih label {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 64px; height: 32px; padding: 0 12px;
+  border: 1.5px solid #cbd5e1; border-radius: 8px;
+  font-size: 12.5px; font-weight: 600; color: #5f7678; cursor: pointer;
+}
+.ob-pilih label:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 1px; }
+.ob-pilih input { position: absolute; opacity: 0; pointer-events: none; }
+.ob-pilih label.is-ya { border-color: #16a34a; background: #e8f8ee; color: #15803d; }
+.ob-pilih label.is-tidak { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+.ob-butir-catatan {
+  grid-column: 1 / -1; width: 100%; height: 36px; padding: 0 10px;
+  border: 1px solid #d5deec; border-radius: 8px;
+  font: inherit; font-size: 12.5px; color: var(--ink); outline: none;
+}
+.ob-butir-catatan:focus { border-color: #1a6cff; box-shadow: 0 0 0 3px rgba(26, 108, 255, 0.15); }
+
+/* ---------- Detail ---------- */
+.ob-detail-title { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ob-detail-title h1 { font-size: 22px; font-weight: 800; line-height: 1.25; }
+.ob-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.ob-profile {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 18px; padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: 12px; background: #fafbfd;
+}
+.ob-profile > div:not(.ob-skor) { display: grid; gap: 2px; font-size: 12.5px; color: var(--muted); }
+.ob-profile strong { font-size: 15px; color: var(--ink); }
+.ob-skor { display: grid; justify-items: center; margin-left: auto; padding: 8px 18px; border-radius: 10px; background: #eaf1ff; }
+.ob-skor small { font-size: 11px; color: var(--blue); }
+.ob-skor strong { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--blue); }
+
+.ob-tabs { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 20px; border-bottom: 1px solid var(--line); }
+.ob-tabs button {
+  margin-bottom: -1px; padding: 10px 2px;
+  border: 0; border-bottom: 2px solid transparent; background: none;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.ob-tabs button:hover { color: var(--ink); }
+.ob-tabs button.is-on { border-bottom-color: #1a6cff; color: #1a6cff; }
+
+.ob-hasil { margin-top: 14px; }
+.ob-flat { margin-top: 0; border-top: 1px solid var(--line); }
+.ob-hasil-table { min-width: 560px; }
+.ob-hasil-table th, .ob-hasil-table td { padding: 10px 14px; }
+.ob-c { width: 56px; text-align: center !important; }
+.ob-cek { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid #cbd5e1; border-radius: 4px; color: #fff; }
+.ob-cek.is-ya { border-color: #1a6cff; background: #1a6cff; }
+.ob-cek.is-tidak { border-color: #dc2626; background: #dc2626; }
+
+.ob-teks { margin-top: 16px; max-width: 70ch; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+.ob-riwayat { display: grid; gap: 10px; margin: 16px 0 0; padding: 0; list-style: none; max-width: 520px; }
+.ob-riwayat li { display: grid; gap: 2px; padding: 10px 14px; border-left: 3px solid #9bbcf5; border-radius: 6px; background: #f6f9ff; font-size: 13px; }
+.ob-riwayat span { font-size: 12px; color: var(--muted); }
+
+/* ---------- Responsif ---------- */
+@media (max-width: 900px) {
+  .ob-filter { grid-template-columns: 1fr 1fr; }
+  .ob-filter .dg-search { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .ob-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ob-butir-list li { grid-template-columns: 1fr; }
+  .ob-profile { flex-wrap: wrap; }
+  .ob-skor { margin-left: 0; }
+  .ob-filter { grid-template-columns: 1fr; }
+}
+
+/* Unduh PDF memakai window.print(): sembunyikan sidebar dan tombol */
+@media print {
+  .dbd .ob-detail-actions, .ob-crumb { display: none !important; }
+  .ob-acc-head svg { display: none; }
+}

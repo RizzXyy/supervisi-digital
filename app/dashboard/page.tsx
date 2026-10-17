@@ -150,7 +150,9 @@ export default function DashboardPage() {
       if (active) setUser(s);
     });
     // Nanti: ganti dengan fetch dari Supabase
-    setData(getDashboard());
+    queueMicrotask(() => {
+      if (active) setData(getDashboard());
+    });
     return () => {
       active = false;
     };

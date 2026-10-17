@@ -32,11 +32,13 @@ export default function DataGuruPage() {
 
   // Muat data guru, dan terima filter dari dashboard (?kategori=cukup)
   useEffect(() => {
-    setTeachers(loadTeachers());
-    setReady(true);
-    const k = new URLSearchParams(window.location.search).get("kategori");
-    const found = KATEGORI.find((x) => x.key === k);
-    if (found) setFilter(found.key);
+    queueMicrotask(() => {
+      setTeachers(loadTeachers());
+      setReady(true);
+      const k = new URLSearchParams(window.location.search).get("kategori");
+      const found = KATEGORI.find((x) => x.key === k);
+      if (found) setFilter(found.key);
+    });
   }, []);
 
   // Esc menutup form
