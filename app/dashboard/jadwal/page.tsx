@@ -35,7 +35,8 @@ export default function JadwalPage() {
   const [sups, setSups] = useState<Supervision[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
-  const [now, setNow] = useState<Date>(() => new Date());
+  // null saat prerender; diisi di browser (new Date() saat prerender membuat build gagal)
+  const [now, setNow] = useState<Date | null>(null);
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("semua");
@@ -46,10 +47,13 @@ export default function JadwalPage() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   useEffect(() => {
-    setSups(getSupervisions());
-    setTeachers(loadTeachers());
-    setNow(new Date());
-    setReady(true);
+    const id = window.setTimeout(() => {
+      setSups(getSupervisions());
+      setTeachers(loadTeachers());
+      setNow(new Date());
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   // Segarkan status (Sedang Berlangsung / Menunggu) setiap menit
@@ -69,7 +73,10 @@ export default function JadwalPage() {
   const nameMap = useMemo(() => new Map(teachers.map((t) => [t.id, t.name])), [teachers]);
   const nameOf = (id: string) => nameMap.get(id) ?? "-";
 
-  const withStatus = useMemo(() => sups.map((s) => ({ s, st: statusOf(s, now) })), [sups, now]);
+  const withStatus = useMemo(
+    () => (now ? sups.map((s) => ({ s, st: statusOf(s, now) })) : []),
+    [sups, now],
+  );
   const selesaiCount = withStatus.filter((x) => x.st === "selesai").length;
   const mendatangCount = withStatus.length - selesaiCount;
 

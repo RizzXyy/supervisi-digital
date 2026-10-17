@@ -54,11 +54,12 @@ export default function ObservasiPage() {
   const [view, setView] = useState<View>({ name: "list" });
 
   useEffect(() => {
-    queueMicrotask(() => {
+    const id = window.setTimeout(() => {
       setItems(loadObservasi());
       setTeachers(loadTeachers());
       setReady(true);
-    });
+    }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   const nameMap = useMemo(() => new Map(teachers.map((t) => [t.id, t.name])), [teachers]);
