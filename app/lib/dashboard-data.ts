@@ -21,10 +21,12 @@ export type Supervision = {
   id: string;
   teacherId: string;
   date: Date;
+  start: string | null; // "HH:MM", boleh kosong
+  end: string | null; // "HH:MM", boleh kosong
   mapel: string;
   kelas: string;
   score: number | null; // diisi dari hasil observasi
-  status: "terjadwal" | "selesai";
+  status: "terjadwal" | "selesai"; // dari tanggal saja (dipakai dashboard)
 };
 
 export type Rtl = { id: string; teacherId: string; status: "aktif" | "selesai" };
@@ -144,27 +146,133 @@ export function daysUntil(d: Date) {
   return Math.round((d.getTime() - startOfToday().getTime()) / 86400000);
 }
 
-// ---------- Jadwal, RTL ----------
-// Status ditentukan dari tanggal: sebelum hari ini = selesai, mulai hari ini = terjadwal.
-export function getSupervisions(): Supervision[] {
-  const today = startOfToday();
-  const out: Supervision[] = [];
+// ---------- Jadwal supervisi ----------
+export const BULAN_LENGKAP = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+export function formatTanggalPendek(d: Date) {
+  return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// Kunci tanggal "YYYY-MM-DD" (waktu lokal), dipakai untuk kalender dan penyimpanan
+export function toDateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function fromDateKey(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+type StoredSup = {
+  id: string;
+  teacherId: string;
+  date: string;
+  start: string | null;
+  end: string | null;
+  mapel: string;
+  kelas: string;
+  score: number | null;
+};
+
+function seedSupervisions(): StoredSup[] {
+  const out: StoredSup[] = [];
   for (const g of RAW) {
-    const [y, m, d] = g.date.split("-").map(Number);
-    const date = new Date(y, m - 1, d);
     for (const [name, mapel, kelas] of g.rows) {
       out.push({
         id: `s${out.length + 1}`,
         teacherId: teacherIds.get(name.trim().toLowerCase())!,
-        date,
+        date: g.date,
+        start: null,
+        end: null,
         mapel,
         kelas,
         score: null,
-        status: date < today ? "selesai" : "terjadwal",
       });
     }
   }
   return out;
+}
+
+// Jadwal disimpan di browser supaya Buat/Edit/Hapus Jadwal tidak hilang saat refresh.
+// Nanti ganti dengan Supabase.
+const SUP_KEY = "supervisi.jadwal.v1";
+
+function loadStoredSups(): StoredSup[] {
+  if (typeof window === "undefined") return seedSupervisions();
+  try {
+    const raw = window.localStorage.getItem(SUP_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as StoredSup[];
+    }
+  } catch {
+    /* abaikan, pakai jadwal awal */
+  }
+  return seedSupervisions();
+}
+
+export function getSupervisions(): Supervision[] {
+  const today = startOfToday();
+  return loadStoredSups().map((s) => {
+    const date = fromDateKey(s.date);
+    return { ...s, date, status: date < today ? "selesai" : "terjadwal" };
+  });
+}
+
+export function saveSupervisions(list: Supervision[]) {
+  const stored: StoredSup[] = list.map((s) => ({
+    id: s.id,
+    teacherId: s.teacherId,
+    date: toDateKey(s.date),
+    start: s.start,
+    end: s.end,
+    mapel: s.mapel,
+    kelas: s.kelas,
+    score: s.score,
+  }));
+  try {
+    window.localStorage.setItem(SUP_KEY, JSON.stringify(stored));
+  } catch {
+    /* penyimpanan penuh atau diblokir */
+  }
+}
+
+// Status "hidup" untuk halaman Jadwal:
+// tanggal lewat = selesai, tanggal depan = terjadwal. Hari ini: tanpa jam = terjadwal;
+// dengan jam: sebelum mulai = menunggu, di dalam jam = sedang berlangsung, lewat jam = selesai.
+export type StatusJadwal = "berlangsung" | "menunggu" | "terjadwal" | "selesai";
+
+export const STATUS_META: Record<StatusJadwal, { label: string; bg: string; fg: string }> = {
+  berlangsung: { label: "Sedang Berlangsung", bg: "#dcfce7", fg: "#15803d" },
+  menunggu: { label: "Menunggu", bg: "#ffedd5", fg: "#c2410c" },
+  terjadwal: { label: "Terjadwal", bg: "#dbeafe", fg: "#1d4ed8" },
+  selesai: { label: "Selesai", bg: "#e8edf2", fg: "#475569" },
+};
+
+export const STATUS_ORDER: StatusJadwal[] = ["berlangsung", "menunggu", "terjadwal", "selesai"];
+
+function toMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+export function statusOf(s: Pick<Supervision, "date" | "start" | "end">, now: Date = new Date()): StatusJadwal {
+  const today = startOfToday();
+  if (s.date < today) return "selesai";
+  if (s.date > today) return "terjadwal";
+  if (!s.start || !s.end) return "terjadwal";
+  const mins = now.getHours() * 60 + now.getMinutes();
+  if (mins < toMinutes(s.start)) return "menunggu";
+  if (mins <= toMinutes(s.end)) return "berlangsung";
+  return "selesai";
+}
+
+// "08:00" + "09:30" -> "08.00 - 09.30" (kosong kalau belum diisi)
+export function formatWaktu(s: Pick<Supervision, "start" | "end">) {
+  return s.start && s.end ? `${s.start.replace(":", ".")} - ${s.end.replace(":", ".")}` : "";
 }
 
 // Belum ada data RTL (rencana tindak lanjut). Diisi saat modul RTL Tracker terhubung.
