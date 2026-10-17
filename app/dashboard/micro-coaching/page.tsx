@@ -361,17 +361,8 @@ function Halaman({ boot }: { boot: Boot }) {
 
   return (
     <div className="dbd">
-      <nav className="mc-crumb" aria-label="Breadcrumb">
-        <span>Micro-Coaching</span>
-        <ChevronRight size={12} aria-hidden="true" />
-        <strong>Jadwal Coaching</strong>
-      </nav>
-
       <div className="jd-top">
         <header className="mc-head">
-          <span className="mc-head-icon" aria-hidden="true">
-            <CalendarDays size={24} />
-          </span>
           <div>
             <h1>Jadwal Coaching</h1>
             <p>Kelola jadwal pendampingan dan sesi coaching guru.</p>

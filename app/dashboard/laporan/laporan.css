@@ -1,0 +1,422 @@
+/* Style halaman Laporan.
+   Kelas dasar (mc-*, dg-*, dbd-*) dipakai ulang dari ../micro-coaching/micro-coaching.css */
+
+/* ---------- Filter ---------- */
+.lp-filter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.lp-fgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mc-text);
+}
+.lp-fgroup > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lp-fgroup > span svg {
+  color: var(--mc-accent);
+}
+.lp-fgroup select,
+.lp-range input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--mc-border);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--mc-text);
+}
+.lp-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lp-range input {
+  flex: 1;
+  min-width: 0;
+}
+.lp-range em {
+  font-style: normal;
+  color: var(--mc-muted);
+}
+
+/* ---------- Kartu ringkasan ---------- */
+.lp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.lp-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+}
+.lp-stat-ic {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lp-stat small {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mc-text);
+}
+.lp-stat strong {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 28px;
+  line-height: 1.2;
+  color: var(--mc-text);
+}
+.lp-stat > div > span {
+  font-size: 12px;
+  color: var(--mc-muted);
+}
+.lp-tren {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--mc-muted);
+}
+.lp-tren.is-naik {
+  color: #16a34a;
+}
+.lp-tren.is-turun {
+  color: #dc2626;
+}
+.lp-stat.is-obs {
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+.lp-stat.is-obs .lp-stat-ic {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.lp-stat.is-coach {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+.lp-stat.is-coach .lp-stat-ic {
+  background: #dcfce7;
+  color: #16a34a;
+}
+.lp-stat.is-selesai {
+  background: #fff7ed;
+  border-color: #ffedd5;
+}
+.lp-stat.is-selesai .lp-stat-ic {
+  background: #ffedd5;
+  color: #f59e0b;
+}
+.lp-stat.is-jalan {
+  background: #faf5ff;
+  border-color: #f3e8ff;
+}
+.lp-stat.is-jalan .lp-stat-ic {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+/* ---------- Grafik & insight ---------- */
+.lp-grid2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.lp-grid2 .mc-card {
+  margin-bottom: 0;
+}
+.lp-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.lp-chart-head .mc-title {
+  margin-bottom: 2px;
+}
+.lp-chart-head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mc-muted);
+}
+.lp-legend {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--mc-muted);
+}
+.lp-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lp-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.lp-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lp-chart-empty {
+  padding: 40px 0;
+  text-align: center;
+}
+.lp-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lp-insight,
+.lp-note {
+  padding: 16px;
+  border-radius: 14px;
+}
+.lp-insight {
+  background: var(--mc-bg-soft);
+  border: 1px solid var(--mc-border);
+}
+.lp-note {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+}
+.lp-insight h3,
+.lp-note h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--mc-text);
+}
+.lp-insight h3 svg {
+  color: #f59e0b;
+}
+.lp-note h3 svg {
+  color: var(--mc-accent);
+}
+.lp-insight p,
+.lp-note p {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--mc-muted);
+}
+.lp-insight p:last-child,
+.lp-note p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- Tabel ---------- */
+.lp-prog {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 140px;
+}
+.lp-prog em {
+  min-width: 28px;
+  font-style: normal;
+  font-size: 13px;
+  color: var(--mc-text);
+}
+.lp-bar {
+  display: block;
+  flex: 1;
+  min-width: 70px;
+  height: 7px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.lp-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: #16a34a;
+}
+.lp-none {
+  font-size: 12.5px;
+  color: var(--mc-muted);
+}
+.lp-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--mc-muted);
+}
+.lp-pager > div {
+  display: flex;
+  gap: 6px;
+}
+.lp-pager button {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--mc-border);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: var(--mc-text);
+  cursor: pointer;
+}
+.lp-pager button.is-on {
+  border-color: var(--mc-accent);
+  background: var(--mc-accent);
+  color: #fff;
+}
+.lp-pager button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Dialog detail ---------- */
+.dbd-modal.lp-wide {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.lp-det-who {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--mc-muted);
+}
+.lp-det-who strong {
+  color: var(--mc-text);
+}
+.lp-det-h {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  color: var(--mc-text);
+}
+.lp-det-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lp-det-list li {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--mc-border);
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--mc-text);
+}
+.lp-det-list li > span:first-child {
+  color: var(--mc-muted);
+}
+
+/* ---------- Cetak / Ekspor PDF ---------- */
+.lp-print-meta {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  .lp-print,
+  .lp-print * {
+    visibility: visible !important;
+  }
+  .lp-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    background: #fff;
+  }
+  .lp-noprint {
+    display: none !important;
+  }
+  .lp-print-meta {
+    display: block;
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: #475569;
+  }
+  .lp-print .mc-card,
+  .lp-print .lp-stat,
+  .lp-print .lp-insight,
+  .lp-print .lp-note {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  .lp-print .mc-table-wrap {
+    overflow: visible;
+  }
+  .lp-print .mc-table {
+    min-width: 0;
+  }
+}
+
+/* ---------- Responsif ---------- */
+@media (max-width: 1100px) {
+  .lp-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lp-grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 720px) {
+  .lp-filter {
+    grid-template-columns: 1fr;
+  }
+  .lp-stats {
+    grid-template-columns: 1fr;
+  }
+  .lp-det-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

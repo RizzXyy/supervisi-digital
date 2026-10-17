@@ -1,0 +1,139 @@
+// Data & logika fitur RTL Tracker (Rencana Tindak Lanjut).
+// File ini TAMBAHAN. Data disimpan di localStorage dulu, nanti ganti dengan Supabase.
+//
+// Status dan progres TIDAK disimpan: keduanya dihitung dari daftar tahapan dan tenggat,
+// jadi selalu konsisten.
+
+export type StatusRtl = "belum" | "proses" | "terlambat" | "selesai";
+
+export const STATUS_RTL: Record<StatusRtl, { label: string; bg: string; fg: string; dot: string }> = {
+  belum: { label: "Belum Dimulai", bg: "#dbeafe", fg: "#1d4ed8", dot: "#60a5fa" },
+  proses: { label: "Dalam Proses", bg: "#ffedd5", fg: "#c2410c", dot: "#f59e0b" },
+  terlambat: { label: "Terlambat", bg: "#fee2e2", fg: "#b91c1c", dot: "#ef4444" },
+  selesai: { label: "Selesai", bg: "#dcfce7", fg: "#15803d", dot: "#16a34a" },
+};
+
+export const STATUS_RTL_ORDER: StatusRtl[] = ["belum", "proses", "terlambat", "selesai"];
+
+export type Tahapan = { id: string; teks: string; selesai: boolean };
+
+// Catatan: localStorage tidak bisa menyimpan file, jadi yang disimpan hanya nama & ukuran.
+// Saat pindah ke Supabase, unggah file-nya ke Supabase Storage lalu simpan URL-nya di sini.
+export type Bukti = { id: string; nama: string; ukuran: number; tanggal: string };
+
+export type LogRtl = { waktu: string; teks: string };
+
+export type Rtl = {
+  id: string;
+  teacherId: string;
+  target: string;
+  kelas: string;
+  tenggat: string; // "YYYY-MM-DD"
+  dibuat: string; // "YYYY-MM-DD"
+  indikator: string[];
+  tahapan: Tahapan[];
+  rekomendasi: string[]; // rekomendasi AI dari sesi micro-coaching
+  coachingId: string | null;
+  catatan: string; // catatan guru
+  bukti: Bukti[];
+  riwayat: LogRtl[]; // terbaru di depan
+};
+
+const KEY = "supervisi.rtl.v1";
+
+export function loadRtl(): Rtl[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as Rtl[];
+    }
+  } catch {
+    /* abaikan */
+  }
+  return [];
+}
+
+export function saveRtl(list: Rtl[]) {
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(list));
+  } catch {
+    /* penyimpanan penuh atau diblokir */
+  }
+}
+
+const ms = (key: string) => {
+  const [y, m, d] = key.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+};
+
+// Selisih hari dari tanggal `dari` ke `ke` (format "YYYY-MM-DD"). Negatif kalau `ke` sudah lewat.
+export function selisihHari(dari: string, ke: string) {
+  return Math.round((ms(ke) - ms(dari)) / 86_400_000);
+}
+
+export function progres(r: Pick<Rtl, "tahapan">) {
+  if (r.tahapan.length === 0) return 0;
+  const selesai = r.tahapan.filter((t) => t.selesai).length;
+  return Math.round((selesai / r.tahapan.length) * 100);
+}
+
+export function statusRtl(r: Pick<Rtl, "tahapan" | "tenggat">, today: string): StatusRtl {
+  const p = progres(r);
+  if (r.tahapan.length > 0 && p === 100) return "selesai";
+  if (r.tenggat < today) return "terlambat";
+  if (p > 0) return "proses";
+  return "belum";
+}
+
+export type Hitung = Record<StatusRtl, number> & { total: number };
+
+export function hitungStatus(items: Rtl[], today: string): Hitung {
+  const h: Hitung = { belum: 0, proses: 0, terlambat: 0, selesai: 0, total: items.length };
+  for (const r of items) h[statusRtl(r, today)] += 1;
+  return h;
+}
+
+// Warna donat (conic-gradient) untuk rekap status
+export function gradienDonat(h: Hitung) {
+  if (h.total === 0) return "#e2e8f0";
+  let acc = 0;
+  const parts: string[] = [];
+  for (const k of ["selesai", "proses", "terlambat", "belum"] as StatusRtl[]) {
+    const p = (h[k] / h.total) * 100;
+    if (p === 0) continue;
+    parts.push(`${STATUS_RTL[k].dot} ${acc}% ${acc + p}%`);
+    acc += p;
+  }
+  return `conic-gradient(${parts.join(", ")})`;
+}
+
+export type Notifikasi = { id: string; rtlId: string; tipe: "telat" | "dekat"; teks: string };
+
+// Notifikasi dibuat otomatis dari tenggat (tidak disimpan)
+export function buatNotifikasi(items: Rtl[], today: string): Notifikasi[] {
+  const out: Notifikasi[] = [];
+  for (const r of [...items].sort((a, b) => a.tenggat.localeCompare(b.tenggat))) {
+    const st = statusRtl(r, today);
+    if (st === "selesai") continue;
+    const s = selisihHari(today, r.tenggat);
+    if (st === "terlambat") {
+      out.push({ id: `n-${r.id}`, rtlId: r.id, tipe: "telat", teks: `"${r.target}" terlambat ${Math.abs(s)} hari.` });
+    } else if (s <= 7) {
+      out.push({
+        id: `n-${r.id}`,
+        rtlId: r.id,
+        tipe: "dekat",
+        teks: s === 0 ? `"${r.target}" jatuh tempo hari ini.` : `"${r.target}" jatuh tempo ${s} hari lagi.`,
+      });
+    }
+  }
+  return out;
+}
+
+export function formatUkuran(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
