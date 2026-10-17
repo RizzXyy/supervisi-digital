@@ -1,0 +1,64 @@
+/* Halaman Jadwal Supervisi (tampilan tabel).
+   Gaya dasar (.dbd, .dg-head, .jd-meta, modal, form) ada di ../dashboard-home.css */
+
+.jt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 22px; }
+.jt-search { position: relative; flex: 0 1 350px; min-width: 220px; }
+.jt-search svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #7b9193; pointer-events: none; }
+.jt-search input {
+  width: 100%; height: 50px; padding: 0 16px 0 44px;
+  border: 1.5px solid #8fa6a8; border-radius: 10px; background: #fff;
+  font: inherit; font-size: 15px; color: var(--ink); outline: none;
+}
+.jt-search input:focus { border-color: #1a6cff; box-shadow: 0 0 0 3px rgba(26, 108, 255, 0.15); }
+
+.jt-add {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 50px; padding: 0 22px;
+  border: 0; border-radius: 10px; background: #0b63ff;
+  font: inherit; font-size: 15px; font-weight: 700; color: #fff; cursor: pointer;
+}
+.jt-add:hover { background: #0952d6; }
+.jt-add:focus-visible { outline: 2px solid #0b63ff; outline-offset: 2px; }
+
+.jt-chips { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+.jt-chip {
+  height: 46px; padding: 0 28px;
+  border: 1.5px solid #8fa6a8; border-radius: 10px; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 600; color: #5f7678; cursor: pointer;
+}
+.jt-chip:hover { border-color: #1a6cff; color: #1a6cff; }
+.jt-chip.is-on { border-color: #1a6cff; background: #eaf1ff; color: #1a6cff; }
+
+.jt-table-wrap { margin-top: 28px; overflow-x: auto; }
+.jt-table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 15px; }
+.jt-table th {
+  padding: 12px 18px; border-bottom: 1px solid var(--line);
+  font-size: 15px; font-weight: 600; text-align: left; white-space: nowrap; color: #7b9193;
+}
+.jt-table td { padding: 18px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.jt-no { width: 60px; color: #7b9193; }
+.jt-table td.jt-no { color: #7b9193; }
+.jt-name { font-weight: 700; }
+
+/* Kolom tanggal digabung per hari */
+.jt-date { width: 330px; background: #f3f6f9; text-align: center; font-weight: 600; }
+.jt-date span { display: block; }
+.jt-date small { display: block; margin-top: 4px; font-size: 12.5px; font-weight: 400; color: var(--muted); }
+
+.jt-row { cursor: pointer; }
+.jt-row:hover td:not(.jt-date) { background: #f6f9ff; }
+.jt-row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+.jt-pill {
+  display: inline-block; padding: 3px 16px; border-radius: 99px;
+  font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.jt-pill.is-selesai { background: #15803d; color: #fff; }
+
+.jt-empty { padding: 32px 18px !important; text-align: center; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .jt-search { flex: 1 1 100%; }
+  .jt-add { flex: 1 1 100%; justify-content: center; }
+  .jt-chip { flex: 1 1 auto; padding: 0 16px; }
+}
