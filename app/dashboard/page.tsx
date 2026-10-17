@@ -6,6 +6,7 @@ import {
   ArrowRight,
   CalendarCheck,
   ChartNoAxesCombined,
+  Clock,
   Minus,
   Star,
   Target,
@@ -16,6 +17,8 @@ import {
 } from "lucide-react";
 import { getSession, type Session } from "../lib/auth";
 import {
+  SUPERVISOR,
+  daysUntil,
   formatTanggal,
   getDashboard,
   teacherById,
@@ -30,7 +33,15 @@ const KATEGORI_ICON: Record<KategoriKey, typeof Star> = {
   baik: ThumbsUp,
   cukup: Minus,
   "perlu-pembinaan": TriangleAlert,
+  "belum-dinilai": Clock,
 };
+
+function hariLagi(d: Date) {
+  const n = daysUntil(d);
+  if (n <= 0) return "Hari ini";
+  if (n === 1) return "Besok";
+  return `${n} hari lagi`;
+}
 
 function fmt(v: number) {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
@@ -136,11 +147,10 @@ export default function DashboardPage() {
   useEffect(() => {
     let active = true;
     getSession().then((s) => {
-      if (!active) return;
-      setUser(s);
-      // Nanti: ganti dengan fetch dari Supabase
-      setData(getDashboard());
+      if (active) setUser(s);
     });
+    // Nanti: ganti dengan fetch dari Supabase
+    setData(getDashboard());
     return () => {
       active = false;
     };
@@ -168,7 +178,7 @@ export default function DashboardPage() {
     { title: "Total Guru", value: String(stats.totalGuru), icon: Users, href: "/dashboard/data-guru", tone: "blue" },
     {
       title: "Supervisi Bulan Ini",
-      value: `${stats.selesaiBulanIni}/${stats.totalGuru}`,
+      value: `${stats.selesaiBulanIni}/${stats.totalBulanIni}`,
       icon: CalendarCheck,
       href: "/dashboard/jadwal",
       tone: "indigo",
@@ -176,7 +186,7 @@ export default function DashboardPage() {
     { title: "RTL Aktif", value: String(stats.rtlAktif), icon: Target, href: "/dashboard/rtl-tracker", tone: "green" },
     {
       title: "Rata-Rata Skor",
-      value: fmt(stats.rataSkor),
+      value: stats.rataSkor === null ? "-" : fmt(stats.rataSkor),
       icon: ChartNoAxesCombined,
       href: "/dashboard/laporan",
       tone: "orange",
@@ -232,12 +242,12 @@ export default function DashboardPage() {
                   <li key={s.id} className={`dbd-sched-item${i === 0 ? " is-next" : ""}`}>
                     <div className="dbd-sched-when">
                       <span>{formatTanggal(s.date)}</span>
-                      <span>{s.time}</span>
+                      <span>{hariLagi(s.date)}</span>
                     </div>
                     <div className="dbd-sched-who">
                       <strong>{t?.name}</strong>
                       <span>
-                        {t?.kelas} - {t?.mapel}
+                        {s.kelas} - {s.mapel}
                       </span>
                     </div>
                     <button type="button" className="dbd-detail-btn" onClick={() => setDetail(s)}>
@@ -254,7 +264,13 @@ export default function DashboardPage() {
           {/* Grafik skor */}
           <section className="dbd-card">
             <h2>Grafik Skor Supervisi</h2>
-            <ScoreChart data={trend} />
+            {trend.length > 0 ? (
+              <ScoreChart data={trend} />
+            ) : (
+              <p className="dbd-empty">
+                Belum ada skor supervisi. Grafik muncul setelah hasil observasi dinilai.
+              </p>
+            )}
           </section>
 
           {/* Ringkasan kinerja guru */}
@@ -310,20 +326,20 @@ export default function DashboardPage() {
                 <dd>{detailTeacher?.name}</dd>
               </div>
               <div>
-                <dt>Mata pelajaran</dt>
-                <dd>{detailTeacher?.mapel}</dd>
+                <dt>Mapel / urusan</dt>
+                <dd>{detail.mapel}</dd>
               </div>
               <div>
                 <dt>Kelas</dt>
-                <dd>{detailTeacher?.kelas}</dd>
+                <dd>{detail.kelas}</dd>
               </div>
               <div>
                 <dt>Tanggal</dt>
                 <dd>{formatTanggal(detail.date)}</dd>
               </div>
               <div>
-                <dt>Waktu</dt>
-                <dd>{detail.time}</dd>
+                <dt>Supervisor</dt>
+                <dd>{SUPERVISOR}</dd>
               </div>
               <div>
                 <dt>Status</dt>

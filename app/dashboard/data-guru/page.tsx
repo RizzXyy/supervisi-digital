@@ -13,7 +13,7 @@ import {
 } from "../../lib/dashboard-data";
 import "../dashboard-home.css";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 8;
 
 type FormState = { name: string; nip: string; mapel: string; kelas: string; score: string };
 const EMPTY: FormState = { name: "", nip: "", mapel: "", kelas: "", score: "" };
@@ -30,21 +30,13 @@ export default function DataGuruPage() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState("");
 
-  // Muat data guru, dan terima filter dari dashboard (?kategori=cukup).
-  // Dibaca setelah mount karena localStorage/window hanya ada di browser.
+  // Muat data guru, dan terima filter dari dashboard (?kategori=cukup)
   useEffect(() => {
-    let active = true;
-    queueMicrotask(() => {
-      if (!active) return;
-      setTeachers(loadTeachers());
-      setReady(true);
-      const k = new URLSearchParams(window.location.search).get("kategori");
-      const found = KATEGORI.find((x) => x.key === k);
-      if (found) setFilter(found.key);
-    });
-    return () => {
-      active = false;
-    };
+    setTeachers(loadTeachers());
+    setReady(true);
+    const k = new URLSearchParams(window.location.search).get("kategori");
+    const found = KATEGORI.find((x) => x.key === k);
+    if (found) setFilter(found.key);
   }, []);
 
   // Esc menutup form
@@ -83,7 +75,13 @@ export default function DataGuruPage() {
 
   function openEdit(t: Teacher) {
     setEditId(t.id);
-    setForm({ name: t.name, nip: t.nip, mapel: t.mapel, kelas: t.kelas, score: String(t.score) });
+    setForm({
+      name: t.name,
+      nip: t.nip,
+      mapel: t.mapel,
+      kelas: t.kelas,
+      score: t.score === null ? "" : String(t.score),
+    });
     setError("");
     setModal(true);
   }
@@ -95,17 +93,18 @@ export default function DataGuruPage() {
     const nip = form.nip.replace(/\s/g, "");
     const mapel = form.mapel.trim();
     const kelas = form.kelas.trim();
-    const score = Number(form.score);
+    const scoreText = form.score.trim();
+    const score = scoreText === "" ? null : Number(scoreText);
 
-    if (!name || !mapel || !kelas || form.score.trim() === "") {
-      setError("Nama, mata pelajaran, kelas, dan skor wajib diisi.");
+    if (!name || !mapel || !kelas) {
+      setError("Nama, mata pelajaran, dan kelas wajib diisi.");
       return;
     }
     if (nip && !/^\d{18}$/.test(nip)) {
       setError("NIP harus 18 digit angka (kosongkan jika belum punya NIP).");
       return;
     }
-    if (!Number.isFinite(score) || score < 0 || score > 100) {
+    if (score !== null && (!Number.isFinite(score) || score < 0 || score > 100)) {
       setError("Skor harus berupa angka 0 sampai 100.");
       return;
     }
@@ -212,7 +211,7 @@ export default function DataGuruPage() {
                     <td className="dg-nip">{formatNip(t.nip)}</td>
                     <td>{t.mapel}</td>
                     <td>{t.kelas}</td>
-                    <td>{t.score}</td>
+                    <td>{t.score ?? "-"}</td>
                     <td>
                       <span className="dg-pill" style={{ background: k.color }}>
                         {k.label}
@@ -342,7 +341,7 @@ export default function DataGuruPage() {
                     min={0}
                     max={100}
                     step="any"
-                    placeholder="Contoh: 87.5"
+                    placeholder="Kosong = belum dinilai"
                     value={form.score}
                     onChange={(e) => set("score", e.target.value)}
                   />
