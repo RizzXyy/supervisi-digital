@@ -137,3 +137,54 @@ export function formatUkuran(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// ---------- Isi file bukti (IndexedDB) ----------
+// localStorage hanya menampung nama & ukuran. Isi file disimpan di IndexedDB supaya
+// bukti benar-benar bisa dibuka. Sementara per browser, sampai pindah ke Supabase Storage.
+const BUKTI_DB = "supervisi-bukti";
+const BUKTI_STORE = "bukti";
+
+function bukaDbBukti(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = window.indexedDB.open(BUKTI_DB, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(BUKTI_STORE)) req.result.createObjectStore(BUKTI_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function transaksiBukti<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return bukaDbBukti().then(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(BUKTI_STORE, mode);
+        const req = fn(tx.objectStore(BUKTI_STORE));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        tx.oncomplete = () => db.close();
+      })
+  );
+}
+
+export async function simpanBuktiFile(id: string, file: Blob): Promise<void> {
+  await transaksiBukti("readwrite", (s) => s.put(file, id));
+}
+
+export async function ambilBuktiFile(id: string): Promise<Blob | null> {
+  try {
+    const v = await transaksiBukti<Blob | undefined>("readonly", (s) => s.get(id));
+    return v ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function hapusBuktiFile(id: string): Promise<void> {
+  try {
+    await transaksiBukti("readwrite", (s) => s.delete(id));
+  } catch {
+    /* abaikan */
+  }
+}

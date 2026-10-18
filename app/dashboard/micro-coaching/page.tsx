@@ -27,6 +27,7 @@ import {
   type Teacher,
 } from "../../lib/dashboard-data";
 import { STATUS_OBS, inisial, loadObservasi, stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { getAccessToken } from "../../lib/auth";
 import {
   STATUS_COACHING,
   STATUS_COACHING_ORDER,
@@ -303,10 +304,13 @@ function Halaman({ boot }: { boot: Boot }) {
   }
 
   /* ----- AI Feedback ----- */
+  // Hanya hasil observasi yang sudah DITERBITKAN kepala sekolah yang boleh dianalisis AI.
   const obsGuru = useMemo(
     () =>
       selected
-        ? observasi.filter((o) => o.teacherId === selected.teacherId).sort((a, b) => b.date.localeCompare(a.date))
+        ? observasi
+            .filter((o) => o.teacherId === selected.teacherId && o.diterbitkan)
+            .sort((a, b) => b.date.localeCompare(a.date))
         : [],
     [observasi, selected],
   );
@@ -330,9 +334,13 @@ function Halaman({ boot }: { boot: Boot }) {
     setAiLoading(true);
     setAiError("");
     try {
+      const token = await getAccessToken();
       const res = await fetch("/api/ai-feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(buatPayload(o, selected.topik)),
       });
       const data = await res.json().catch(() => null);

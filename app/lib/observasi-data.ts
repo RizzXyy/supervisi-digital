@@ -20,6 +20,9 @@ export type Observasi = {
   jawaban: Record<string, Jawaban>;
   catatan: string;
   rekomendasi: string;
+  // Hasil observasi hanya boleh dilihat guru setelah diterbitkan kepala sekolah.
+  // Observasi lama (sebelum fitur ini) tidak punya field ini = belum diterbitkan.
+  diterbitkan?: boolean;
   riwayat: { at: string; teks: string }[];
 };
 

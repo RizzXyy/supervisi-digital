@@ -434,3 +434,6 @@ body:has(.dbd) { background: #fff; }
   .dbd-sched-when { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; gap: 10px; }
   .dbd-detail > div { grid-template-columns: 100px 1fr; }
 }
+/* Notifikasi */.dbd-notif { display: grid; gap: 10px; margin-top: 14px; }.dbd-notif li { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35; }.dbd-notif li.is-late { background: #fee2e2; color: #b91c1c; }.dbd-notif li.is-soon { background: #ffedd5; color: #c2410c; }.dbd-notif svg { flex-shrink: 0; margin-top: 1px; }
+
+/* Notifikasi RTL */.dbd-notif { display: grid; gap: 10px; margin-top: 14px; }.dbd-notif li { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35; }.dbd-notif li.is-late { background: #fee2e2; color: #b91c1c; }.dbd-notif li.is-soon { background: #ffedd5; color: #c2410c; }.dbd-notif svg { flex-shrink: 0; margin-top: 1px; }

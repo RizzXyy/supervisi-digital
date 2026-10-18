@@ -4,6 +4,11 @@
   min-height: 100vh;
 }
 
+/* Jarak isi halaman dari tepi layar. File ini selalu dimuat di semua halaman dashboard,
+   jadi halaman lama (E-Portofolio, Micro-Coaching, dan lain-lain) tidak lagi mepet.
+   Halaman bergaya baru (.dbd) mengatur jaraknya sendiri di dashboard-home.css. */
+.dash-shell > .main { min-width: 0; padding: 24px 28px 40px; }
+
 .sb {
   position: sticky;
   top: 0;
@@ -64,8 +69,6 @@
 
 /* ---------- Profil ---------- */
 .sb-user { display: flex; align-items: center; gap: 10px; padding: 0 16px 0 32px; }
-.sb-profile { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 5px 6px; margin: -5px -6px; border-radius: 10px; cursor: pointer; }
-.sb-profile:hover { background: #eef3fb; }
 .sb-avatar {
   display: grid; place-items: center; flex-shrink: 0;
   width: 36px; height: 36px; border-radius: 50%;
@@ -96,6 +99,7 @@
     grid-template-columns: 1fr;
     padding-left: 68px;
   }
+  .dash-shell > .main { padding: 16px 14px 28px; }
 
   .sb {
     --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);

@@ -53,6 +53,7 @@ import {
   type PortofolioStatus,
 } from "../../lib/portofolio-store";
 import s from "./portofolio.module.css";
+import "../dashboard-home.css";
 
 /* ---------- Gaya per kategori ---------- */
 const KATEGORI_STYLE: Record<string, { tone: string; icon: LucideIcon; badge: string }> = {
@@ -342,14 +343,14 @@ export default function EPortofolioPage() {
 
   if (!ready) {
     return (
-      <div className={s.page}>
+      <div className={`dbd ${s.page}`}>
         <p className={s.empty}>Memuat portofolio...</p>
       </div>
     );
   }
 
   return (
-    <div className={s.page}>
+    <div className={`dbd ${s.page}`}>
       {/* Judul fitur (paling atas) */}
       <header className={s.header}>
         <div>

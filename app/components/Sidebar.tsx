@@ -17,7 +17,6 @@ import {
   Users,
 } from "lucide-react";
 import { getSession, logout, type Role, type Session } from "../lib/auth";
-import { SCHOOL_NAME } from "../lib/dashboard-data";
 import "./Sidebar.css";
 
 type Item = { label: string; href: string; icon: typeof House; roles: Role[] };
@@ -30,7 +29,7 @@ const GROUPS: Group[] = [
   {
     items: [
       { label: "Dashboard", href: "/dashboard", icon: House, roles: ["kepala_sekolah", "guru"] },
-      { label: "Data Guru", href: "/dashboard/data-guru", icon: Users, roles: ["kepala_sekolah", "guru"] },
+      { label: "Data Guru", href: "/dashboard/data-guru", icon: Users, roles: ["kepala_sekolah"] },
       { label: "Jadwal Supervisi", href: "/dashboard/jadwal", icon: CalendarDays, roles: ["kepala_sekolah", "guru"] },
       { label: "Observasi", href: "/dashboard/observasi", icon: ClipboardPen, roles: ["kepala_sekolah"] },
     ],
@@ -167,7 +166,6 @@ export default function Sidebar() {
             <div className="sb-user-info">
               <div className="sb-user-name">{user?.name ?? "..."}</div>
               <div className="sb-user-role">{user ? ROLE_LABEL[user.role] : ""}</div>
-              {user?.role === "guru" && <div className="sb-user-school">{SCHOOL_NAME}</div>}
             </div>
           </Link>
           <button type="button" className="sb-logout" onClick={handleLogout} aria-label="Keluar">

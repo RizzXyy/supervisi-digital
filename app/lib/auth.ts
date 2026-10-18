@@ -87,3 +87,13 @@ export async function logout() {
   const supabase = createClient();
   await supabase.auth.signOut();
 }
+
+// Token akses Supabase untuk permintaan ke API server (mis. /api/ai-feedback).
+// Dikirim lewat header "Authorization: Bearer <token>".
+export async function getAccessToken(): Promise<string | null> {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}

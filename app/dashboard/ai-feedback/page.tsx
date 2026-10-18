@@ -25,21 +25,25 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { getSession, type Session } from "../../lib/auth";
+import { getAccessToken, getSession, type Session } from "../../lib/auth";
 import {
   BULAN_LENGKAP,
   formatTanggalPendek,
   fromDateKey,
   getSupervisions,
   loadTeachers,
+  toDateKey,
   type Supervision,
   type Teacher,
 } from "../../lib/dashboard-data";
 import { loadRpp, type RppDoc, type RppStatus } from "../../lib/rpp-store";
+import { loadObservasi, stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { buatPayload, loadCoaching, type AiFeedback, type Coaching } from "../../lib/coaching-data";
 import {
   SAMPLE_RECORDS,
   TINDAK_LANJUT_LABEL,
   loadFeedback,
+  saveFeedback,
   type FeedbackRecord,
   type FeedbackSources,
 } from "../../lib/ai-feedback-store";
@@ -85,6 +89,8 @@ export default function AiFeedbackPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [sups, setSups] = useState<Supervision[]>([]);
   const [docs, setDocs] = useState<RppDoc[]>([]);
+  const [observasi, setObservasi] = useState<Observasi[]>([]);
+  const [coaching, setCoaching] = useState<Coaching[]>([]);
   const [records, setRecords] = useState<FeedbackRecord[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -99,12 +105,15 @@ export default function AiFeedbackPage() {
   const [draftTeacher, setDraftTeacher] = useState("");
   const [draftSession, setDraftSession] = useState("");
   const [notice, setNotice] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       setTeachers(loadTeachers());
       setSups(getSupervisions());
       setDocs(loadRpp());
+      setObservasi(loadObservasi());
+      setCoaching(loadCoaching());
       setRecords(loadFeedback());
       setReady(true);
     }, 0);
@@ -171,8 +180,21 @@ export default function AiFeedbackPage() {
 
   const historyList = sample ? SAMPLE_RECORDS : subjectRecords;
 
-  // Sumber data. Hasil observasi, catatan, dan micro-coaching akan terisi saat modulnya terhubung.
-  const liveSources: FeedbackSources = { observasi: 0, catatan: 0, coaching: 0, dokumen: docCount.ok };
+  // Sumber data nyata untuk guru yang ditinjau (dipakai di kartu sumber & syarat pembuatan).
+  const obsPublished = useMemo(
+    () => (subject ? observasi.filter((o) => o.teacherId === subject.id && o.diterbitkan) : []),
+    [observasi, subject],
+  );
+  const coachingCount = useMemo(
+    () => (subject ? coaching.filter((c) => c.teacherId === subject.id).length : 0),
+    [coaching, subject],
+  );
+  const liveSources: FeedbackSources = {
+    observasi: obsPublished.length,
+    catatan: obsPublished.filter((o) => o.catatan.trim() !== "").length,
+    coaching: coachingCount,
+    dokumen: docCount.ok,
+  };
   const sources = shown ? shown.sources : liveSources;
   const canGenerate = !sample && liveSources.observasi > 0;
 
@@ -202,10 +224,62 @@ export default function AiFeedbackPage() {
     setEditOpen(false);
   }
 
-  function handleGenerate() {
-    // Belum dihubungkan ke AI. Hubungkan lewat route server (misalnya /api/ai-feedback) yang
-    // hanya menerima hasil observasi yang sudah dipublikasikan untuk sesi ini.
-    setNotice("Pembuatan feedback otomatis belum dihubungkan ke AI. Fitur ini aktif setelah hasil observasi tersedia dan AI tersambung.");
+  // Buat feedback dengan AI. Hanya memakai hasil observasi yang sudah dipublikasikan.
+  async function handleGenerate() {
+    if (sample) return;
+    if (!session) {
+      setNotice("Belum ada sesi supervisi untuk guru ini.");
+      return;
+    }
+    const o = obsPublished.find((x) => x.date === toDateKey(session.date)) ?? obsPublished[0];
+    if (!o) {
+      setNotice("Belum ada hasil observasi yang dipublikasikan untuk sesi ini.");
+      return;
+    }
+    setGenerating(true);
+    setNotice("");
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/ai-feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(buatPayload(o, session.mapel || o.mapel)),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error ?? "Gagal membuat feedback AI.");
+      const fb: AiFeedback = { ...data, dibuat: stempelWaktu() };
+      const rec: FeedbackRecord = {
+        id: `af-${Date.now()}`,
+        teacherName: subjectName,
+        supervisionId: session.id,
+        sessionDate: toDateKey(session.date),
+        mapel: session.mapel || o.mapel,
+        kelas: session.kelas || o.kelas,
+        generatedAt: new Date().toISOString(),
+        ringkasan: fb.ringkasan,
+        kekuatan: fb.kekuatan,
+        area: fb.pengembangan,
+        rekomendasi: fb.rencana,
+        sources: liveSources,
+        tindakLanjut: "belum",
+        archived: false,
+      };
+      const next = [rec, ...records];
+      setRecords(next);
+      saveFeedback(next);
+      setRecordId(rec.id);
+      setSample(false);
+      setSub("ringkasan");
+      setTab("hasil");
+      setNotice("Feedback AI berhasil dibuat.");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Gagal membuat feedback AI.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function handlePrint() {
@@ -421,6 +495,7 @@ export default function AiFeedbackPage() {
                             type="button"
                             className="af-icon-btn af-noprint"
                             onClick={handleGenerate}
+                            disabled={generating}
                             aria-label="Buat ulang feedback"
                             title="Buat ulang feedback"
                           >
@@ -766,10 +841,10 @@ export default function AiFeedbackPage() {
               type="button"
               className="af-btn is-primary"
               onClick={handleGenerate}
-              disabled={!canGenerate}
+              disabled={!canGenerate || generating}
               title={canGenerate ? "Buat feedback baru" : "Tersedia setelah hasil observasi dipublikasikan"}
             >
-              <RefreshCw size={16} aria-hidden="true" /> Buat Feedback Baru
+              <RefreshCw size={16} aria-hidden="true" /> {generating ? "Membuat..." : "Buat Feedback Baru"}
             </button>
           </div>
         </aside>

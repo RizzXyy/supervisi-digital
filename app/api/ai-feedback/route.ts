@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AiError, buatFeedbackGemini } from "../../lib/ai";
+import { createServerSupabase } from "../../lib/supabase-server";
 import type { FeedbackPayload } from "../../lib/coaching-data";
 
 export const maxDuration = 30;
@@ -39,9 +40,22 @@ function bersihkan(body: unknown): FeedbackPayload | null {
   };
 }
 
-// CATATAN: route ini belum memeriksa login. Sebelum dipakai sungguhan, tambahkan
-// pengecekan sesi (mis. token Supabase) supaya orang luar tidak bisa memakai kuota API key.
+// CATATAN: route ini hanya boleh dipakai pengguna yang sudah login.
+// Klien mengirim token akses Supabase lewat header "Authorization: Bearer <token>".
 export async function POST(req: Request) {
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (!token) {
+    return NextResponse.json({ error: "Silakan login terlebih dahulu." }, { status: 401 });
+  }
+  const supabase = createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser(token);
+  if (!user) {
+    return NextResponse.json({ error: "Sesi tidak valid. Coba login ulang." }, { status: 401 });
+  }
+
   const raw = await req.text();
   if (raw.length > 40_000) {
     return NextResponse.json({ error: "Data terlalu besar." }, { status: 413 });

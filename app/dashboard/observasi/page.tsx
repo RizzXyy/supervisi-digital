@@ -22,10 +22,13 @@ import {
   formatTanggal,
   formatTanggalPendek,
   fromDateKey,
+  getSupervisions,
   loadTeachers,
   toDateKey,
   type Teacher,
 } from "../../lib/dashboard-data";
+import { useRoleGuard } from "../../lib/use-role-guard";
+import type { Role } from "../../lib/auth";
 import {
   INSTRUMEN,
   SEMUA_BUTIR,
@@ -47,16 +50,38 @@ import "./observasi.css";
 
 type View = { name: "list" } | { name: "form"; id?: string } | { name: "detail"; id: string };
 
+// Hanya kepala sekolah yang boleh membuka halaman ini.
+const ALLOW: Role[] = ["kepala_sekolah"];
+
+// Data awal saat datang dari tombol "Mulai Observasi" di Dashboard.
+type Prefill = { teacherId: string; mapel: string; kelas: string; date: string };
+
 export default function ObservasiPage() {
+  const boleh = useRoleGuard(ALLOW);
   const [items, setItems] = useState<Observasi[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
   const [view, setView] = useState<View>({ name: "list" });
+  const [prefill, setPrefill] = useState<Prefill | undefined>(undefined);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       setItems(loadObservasi());
       setTeachers(loadTeachers());
+      // Bila dibuka dengan ?jadwal=<id> (dari Dashboard), langsung isikan form.
+      const jadwalId = new URLSearchParams(window.location.search).get("jadwal");
+      if (jadwalId) {
+        const sup = getSupervisions().find((s) => s.id === jadwalId);
+        if (sup) {
+          setPrefill({
+            teacherId: sup.teacherId,
+            mapel: sup.mapel,
+            kelas: sup.kelas,
+            date: toDateKey(sup.date),
+          });
+          setView({ name: "form" });
+        }
+      }
       setReady(true);
     }, 0);
     return () => window.clearTimeout(id);
@@ -80,7 +105,7 @@ export default function ObservasiPage() {
     commit(items.filter((x) => x.id !== id));
   }
 
-  if (!ready) {
+  if (!ready || !boleh) {
     return (
       <div className="dbd">
         <p className="dbd-loading">Memuat observasi...</p>
@@ -93,6 +118,7 @@ export default function ObservasiPage() {
     return (
       <FormView
         initial={initial}
+        prefill={prefill}
         teachers={teachers}
         onCancel={() => setView(initial ? { name: "detail", id: initial.id } : { name: "list" })}
         onSave={(o) => {
@@ -315,6 +341,11 @@ function ListView({
                         <span className="jd-badge" style={{ background: meta.bg, color: meta.fg }}>
                           {meta.label}
                         </span>
+                        {o.diterbitkan && (
+                          <span className="jd-badge" style={{ background: "#dcfce7", color: "#15803d", marginLeft: 6 }}>
+                            Diterbitkan
+                          </span>
+                        )}
                       </td>
                       <td className="dg-aksi">
                         <span className="ob-aksi">
@@ -398,22 +429,24 @@ const LANGKAH = ["Identitas & Data", "Instrumen Observasi", "Catatan & Rekomenda
 
 function FormView({
   initial,
+  prefill,
   teachers,
   onCancel,
   onSave,
 }: {
   initial?: Observasi;
+  prefill?: Prefill;
   teachers: Teacher[];
   onCancel: () => void;
   onSave: (o: Observasi) => void;
 }) {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
-  const [teacherId, setTeacherId] = useState(initial?.teacherId ?? "");
-  const [mapel, setMapel] = useState(initial?.mapel ?? "");
-  const [kelas, setKelas] = useState(initial?.kelas ?? "");
+  const [teacherId, setTeacherId] = useState(initial?.teacherId ?? prefill?.teacherId ?? "");
+  const [mapel, setMapel] = useState(initial?.mapel ?? prefill?.mapel ?? "");
+  const [kelas, setKelas] = useState(initial?.kelas ?? prefill?.kelas ?? "");
   const [pokok, setPokok] = useState(initial?.pokok ?? "");
-  const [date, setDate] = useState(initial?.date ?? toDateKey(new Date()));
+  const [date, setDate] = useState(initial?.date ?? prefill?.date ?? toDateKey(new Date()));
   const [observer, setObserver] = useState(initial?.observer ?? "Indi Ramadhani");
   const [jawaban, setJawaban] = useState<Record<string, Jawaban>>(initial?.jawaban ?? {});
   const [catatan, setCatatan] = useState(initial?.catatan ?? "");
@@ -472,6 +505,7 @@ function FormView({
       jawaban,
       catatan: catatan.trim(),
       rekomendasi: rekomendasi.trim(),
+      diterbitkan: initial?.diterbitkan,
       riwayat: [...(initial?.riwayat ?? []), { at: stempelWaktu(), teks: riwayatBaru }],
     });
   }
@@ -759,6 +793,23 @@ function DetailView({
     });
   }
 
+  // Terbitkan hasil supaya guru bisa melihatnya di menu "Hasil Observasi Supervisi".
+  function terbitkan() {
+    onUpdate({
+      ...o,
+      diterbitkan: true,
+      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Hasil diterbitkan untuk guru (skor ${hitungSkor(o)})` }],
+    });
+  }
+
+  function tarikTerbit() {
+    onUpdate({
+      ...o,
+      diterbitkan: false,
+      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: "Penerbitan hasil dibatalkan" }],
+    });
+  }
+
   return (
     <div className="dbd">
       <nav className="ob-crumb" aria-label="Breadcrumb">
@@ -775,6 +826,11 @@ function DetailView({
           <span className="jd-badge" style={{ background: meta.bg, color: meta.fg }}>
             {meta.label}
           </span>
+          {o.diterbitkan && (
+            <span className="jd-badge" style={{ background: "#dcfce7", color: "#15803d" }}>
+              Diterbitkan
+            </span>
+          )}
         </div>
         <div className="ob-detail-actions">
           {o.status !== "selesai" && (
@@ -786,6 +842,16 @@ function DetailView({
           {o.status === "review" && (
             <button type="button" className="dbd-btn-primary" onClick={selesaikan}>
               Setujui & Selesaikan
+            </button>
+          )}
+          {o.status === "selesai" && !o.diterbitkan && (
+            <button type="button" className="dbd-btn-primary" onClick={terbitkan}>
+              Terbitkan Hasil
+            </button>
+          )}
+          {o.status === "selesai" && o.diterbitkan && (
+            <button type="button" className="dbd-btn-ghost" onClick={tarikTerbit}>
+              Batalkan Penerbitan
             </button>
           )}
           <button type="button" className="dbd-btn-ghost" onClick={() => window.print()}>

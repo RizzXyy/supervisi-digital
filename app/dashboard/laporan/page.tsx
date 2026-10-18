@@ -23,6 +23,8 @@ import { fromDateKey, formatTanggalPendek, loadTeachers, toDateKey, type Teacher
 import { hitungSkor, inisial, loadObservasi, type Observasi } from "../../lib/observasi-data";
 import { STATUS_COACHING, loadCoaching, type Coaching } from "../../lib/coaching-data";
 import { STATUS_RTL, loadRtl, progres, statusRtl, type Rtl, type StatusRtl } from "../../lib/rtl-data";
+import { useRoleGuard } from "../../lib/use-role-guard";
+import type { Role } from "../../lib/auth";
 import {
   PERIODE_OPSI,
   bandingkan,
@@ -45,6 +47,9 @@ import "./laporan.css";
 const PER_HAL = 8;
 const WARNA_SEBELUM = "#60a5fa";
 const WARNA_SESUDAH = "#1e40af";
+
+// Hanya kepala sekolah yang boleh membuka halaman ini.
+const ALLOW: Role[] = ["kepala_sekolah"];
 
 type Boot = { teachers: Teacher[]; observasi: Observasi[]; coaching: Coaching[]; rtl: Rtl[]; now: Date };
 
@@ -140,6 +145,7 @@ function Grafik({ seri }: { seri: Seri }) {
 
 /* Pembungkus: data dibaca di browser dulu supaya aman dari error prerender Next.js. */
 export default function LaporanPage() {
+  const boleh = useRoleGuard(ALLOW);
   const [boot, setBoot] = useState<Boot | null>(null);
 
   useEffect(() => {
@@ -155,7 +161,7 @@ export default function LaporanPage() {
     return () => window.clearTimeout(id);
   }, []);
 
-  if (!boot) {
+  if (!boot || !boleh) {
     return (
       <div className="dbd">
         <p className="dbd-loading">Memuat laporan...</p>

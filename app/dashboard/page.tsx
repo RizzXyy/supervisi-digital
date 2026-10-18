@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Bell,
   CalendarCheck,
   ChartNoAxesCombined,
   Clock,
@@ -22,10 +23,12 @@ import {
   formatTanggal,
   getDashboard,
   teacherById,
+  toDateKey,
   type DashboardData,
   type KategoriKey,
   type Supervision,
 } from "../lib/dashboard-data";
+import { buatNotifikasi, loadRtl, type Notifikasi } from "../lib/rtl-data";
 import "./dashboard-home.css";
 
 const KATEGORI_ICON: Record<KategoriKey, typeof Star> = {
@@ -141,17 +144,23 @@ function ScoreChart({ data }: { data: { label: string; value: number }[] }) {
 /* ---------- Halaman ---------- */
 export default function DashboardPage() {
   const [user, setUser] = useState<Session | null>(null);
+  const [userReady, setUserReady] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [notif, setNotif] = useState<Notifikasi[]>([]);
   const [detail, setDetail] = useState<Supervision | null>(null);
 
   useEffect(() => {
     let active = true;
     getSession().then((s) => {
-      if (active) setUser(s);
+      if (!active) return;
+      setUser(s);
+      setUserReady(true);
     });
     // Nanti: ganti dengan fetch dari Supabase
     queueMicrotask(() => {
-      if (active) setData(getDashboard());
+      if (!active) return;
+      setData(getDashboard());
+      setNotif(buatNotifikasi(loadRtl(), toDateKey(new Date())));
     });
     return () => {
       active = false;
@@ -166,7 +175,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [detail]);
 
-  if (!data) {
+  if (!data || !userReady) {
     return (
       <div className="dbd">
         <p className="dbd-loading">Memuat dashboard...</p>
@@ -175,6 +184,7 @@ export default function DashboardPage() {
   }
 
   const { stats, upcoming, trend, kinerja } = data;
+  const isGuru = user?.role === "guru";
 
   const cards = [
     { title: "Total Guru", value: String(stats.totalGuru), icon: Users, href: "/dashboard/data-guru", tone: "blue" },
@@ -193,7 +203,17 @@ export default function DashboardPage() {
       href: "/dashboard/laporan",
       tone: "orange",
     },
-  ];
+    // Guru tidak boleh melihat data guru seluruh sekolah maupun laporan agregat.
+  ].filter((c) => !isGuru || (c.href !== "/dashboard/data-guru" && c.href !== "/dashboard/laporan"));
+
+  // Guru hanya melihat jadwal supervisi untuk dirinya sendiri.
+  const upcomingTampil =
+    isGuru && user
+      ? upcoming.filter((s) => {
+          const t = teacherById(s.teacherId);
+          return !!t && t.name.trim().toLowerCase() === user.name.trim().toLowerCase();
+        })
+      : upcoming;
 
   const detailTeacher = detail ? teacherById(detail.teacherId) : undefined;
 
@@ -212,7 +232,11 @@ export default function DashboardPage() {
       </section>
 
       {/* Kartu ringkasan (semuanya bisa diklik) */}
-      <section className="dbd-stats" aria-label="Ringkasan">
+      <section
+        className="dbd-stats"
+        aria-label="Ringkasan"
+        style={isGuru ? { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" } : undefined}
+      >
         {cards.map(({ title, value, icon: Icon, href, tone }) => (
           <Link key={title} href={href} className={`dbd-stat tone-${tone}`}>
             <span className="dbd-stat-title">{title}</span>
@@ -232,13 +256,17 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {upcoming.length === 0 ? (
+          {upcomingTampil.length === 0 ? (
             <p className="dbd-empty">
-              Belum ada jadwal supervisi. <Link href="/dashboard/jadwal">Buat jadwal supervisi</Link>
+              {isGuru ? "Belum ada jadwal supervisi untuk Anda." : (
+                <>
+                  Belum ada jadwal supervisi. <Link href="/dashboard/jadwal">Buat jadwal supervisi</Link>
+                </>
+              )}
             </p>
           ) : (
             <ul className="dbd-sched">
-              {upcoming.slice(0, 4).map((s, i) => {
+              {upcomingTampil.slice(0, 4).map((s, i) => {
                 const t = teacherById(s.teacherId);
                 return (
                   <li key={s.id} className={`dbd-sched-item${i === 0 ? " is-next" : ""}`}>
@@ -275,33 +303,54 @@ export default function DashboardPage() {
             )}
           </section>
 
-          {/* Ringkasan kinerja guru */}
+          {/* Notifikasi & tenggat (dibuat otomatis dari tenggat RTL) */}
           <section className="dbd-card">
-            <h2>Ringkasan Kinerja Guru</h2>
-            <ul className="dbd-kinerja">
-              {kinerja.map((k) => {
-                const Icon = KATEGORI_ICON[k.key];
-                return (
-                  <li key={k.key}>
-                    <Link href={`/dashboard/data-guru?kategori=${k.key}`} className="dbd-kinerja-row">
-                      <span className="dbd-kinerja-icon" style={{ background: k.color }}>
-                        <Icon size={14} color="#fff" aria-hidden="true" />
-                      </span>
-                      <span className="dbd-kinerja-label">{k.label}</span>
-                      <span className="dbd-kinerja-bar">
-                        <small>
-                          {k.count} Guru ({k.percent}%)
-                        </small>
-                        <span className="dbd-track">
-                          <span className="dbd-fill" style={{ width: `${k.percent}%`, background: k.color }} />
-                        </span>
-                      </span>
-                    </Link>
+            <h2>Notifikasi</h2>
+            {notif.length === 0 ? (
+              <p className="dbd-empty">
+                Tidak ada notifikasi. Tenggat RTL yang mendekat atau terlewat akan tampil di sini.
+              </p>
+            ) : (
+              <ul className="dbd-notif">
+                {notif.slice(0, 5).map((n) => (
+                  <li key={n.id} className={n.tipe === "telat" ? "is-late" : "is-soon"}>
+                    <Bell size={15} aria-hidden="true" />
+                    <span>{n.teks}</span>
                   </li>
-                );
-              })}
-            </ul>
+                ))}
+              </ul>
+            )}
           </section>
+
+          {/* Ringkasan kinerja guru (kepala sekolah saja) */}
+          {!isGuru && (
+            <section className="dbd-card">
+              <h2>Ringkasan Kinerja Guru</h2>
+              <ul className="dbd-kinerja">
+                {kinerja.map((k) => {
+                  const Icon = KATEGORI_ICON[k.key];
+                  return (
+                    <li key={k.key}>
+                      <Link href={`/dashboard/data-guru?kategori=${k.key}`} className="dbd-kinerja-row">
+                        <span className="dbd-kinerja-icon" style={{ background: k.color }}>
+                          <Icon size={14} color="#fff" aria-hidden="true" />
+                        </span>
+                        <span className="dbd-kinerja-label">{k.label}</span>
+                        <span className="dbd-kinerja-bar">
+                          <small>
+                            {k.count} Guru ({k.percent}%)
+                          </small>
+                          <span className="dbd-track">
+                            <span className="dbd-fill" style={{ width: `${k.percent}%`, background: k.color }} />
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
         </div>
       </div>
 
@@ -355,9 +404,11 @@ export default function DashboardPage() {
               <button type="button" className="dbd-btn-ghost" onClick={() => setDetail(null)}>
                 Tutup
               </button>
-              <Link href={`/dashboard/observasi?jadwal=${detail.id}`} className="dbd-btn-primary">
-                Mulai Observasi
-              </Link>
+              {!isGuru && (
+                <Link href={`/dashboard/observasi?jadwal=${detail.id}`} className="dbd-btn-primary">
+                  Mulai Observasi
+                </Link>
+              )}
             </div>
           </div>
         </div>

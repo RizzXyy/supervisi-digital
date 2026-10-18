@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Search, X } from "lucide-react";
 import {
   KATEGORI,
@@ -20,9 +21,11 @@ type FormState = { name: string; nip: string; mapel: string; kelas: string; scor
 const EMPTY: FormState = { name: "", nip: "", mapel: "", kelas: "", score: "" };
 
 export default function DataGuruPage() {
+  const router = useRouter();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<Session | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"semua" | KategoriKey>("semua");
   const [page, setPage] = useState(1);
@@ -41,9 +44,19 @@ export default function DataGuruPage() {
       const found = KATEGORI.find((x) => x.key === k);
       if (found) setFilter(found.key);
     }, 0);
-    getSession().then((s) => setUser(s));
+    getSession().then((s) => {
+      setUser(s);
+      setSessionReady(true);
+    });
     return () => window.clearTimeout(id);
   }, []);
+
+  // Halaman ini khusus kepala sekolah. User lain (guru) dialihkan ke dashboard,
+  // jadi tidak bisa membukanya walau mengetik alamatnya langsung.
+  const dilarang = !!user && user.role !== "kepala_sekolah";
+  useEffect(() => {
+    if (dilarang) router.replace("/dashboard");
+  }, [dilarang, router]);
 
   // Esc menutup form
   useEffect(() => {
@@ -68,7 +81,7 @@ export default function DataGuruPage() {
   const start = (current - 1) * PAGE_SIZE;
   const rows = filtered.slice(start, start + PAGE_SIZE);
 
-  const canEdit = user?.role === "kepala_sekolah"; // guru hanya melihat
+  const canEdit = user?.role === "kepala_sekolah";
 
   function set(key: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -130,7 +143,10 @@ export default function DataGuruPage() {
     setModal(false);
   }
 
-  if (!ready) {
+  // Jangan tampilkan data guru sama sekali untuk user yang dilarang (saat dialihkan)
+  if (dilarang) return null;
+
+  if (!ready || !sessionReady) {
     return (
       <div className="dbd">
         <p className="dbd-loading">Memuat data guru...</p>

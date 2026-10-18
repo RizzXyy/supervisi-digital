@@ -26,13 +26,16 @@ import { loadCoaching, type Coaching } from "../../lib/coaching-data";
 import {
   STATUS_RTL,
   STATUS_RTL_ORDER,
+  ambilBuktiFile,
   formatUkuran,
   gradienDonat,
+  hapusBuktiFile,
   hitungStatus,
   loadRtl,
   progres,
   saveRtl,
   selisihHari,
+  simpanBuktiFile,
   statusRtl,
   type Bukti,
   type Rtl,
@@ -146,6 +149,7 @@ function Halaman({ boot }: { boot: Boot }) {
   const [detailTab, setDetailTab] = useState<TabDetail>("detail");
   const [catatan, setCatatan] = useState("");
   const [catatanOk, setCatatanOk] = useState(false);
+  const [buktiError, setBuktiError] = useState(false);
 
   const [modal, setModal] = useState<ModalState>(null);
   const [form, setForm] = useState<FormState>(FORM_KOSONG);
@@ -153,15 +157,16 @@ function Halaman({ boot }: { boot: Boot }) {
   const [hapusId, setHapusId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!modal && !detailId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setModal(null);
-      setDetailId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [modal, detailId]);
+    if (!catatanOk) return;
+    const id = window.setTimeout(() => setCatatanOk(false), 2000);
+    return () => window.clearTimeout(id);
+  }, [catatanOk]);
+
+  useEffect(() => {
+    if (!buktiError) return;
+    const id = window.setTimeout(() => setBuktiError(false), 4000);
+    return () => window.clearTimeout(id);
+  }, [buktiError]);
 
   const teacherMap = useMemo(() => new Map(teachers.map((t) => [t.id, t])), [teachers]);
   const nameOf = (id: string) => teacherMap.get(id)?.name ?? "-";
@@ -232,6 +237,8 @@ function Halaman({ boot }: { boot: Boot }) {
         return log(baru, t.selesai ? `Tahapan dibuka kembali: ${t.teks}` : `Tahapan selesai: ${t.teks}`);
       }),
     );
+    setBuktiError(false);
+    setCatatanOk(false);
   }
 
   function simpanCatatan(rtlId: string) {
@@ -239,17 +246,25 @@ function Halaman({ boot }: { boot: Boot }) {
       prev.map((r) => (r.id === rtlId ? log({ ...r, catatan: catatan.trim() }, "Catatan diperbarui") : r)),
     );
     setCatatanOk(true);
+    setBuktiError(false);
     window.setTimeout(() => setCatatanOk(false), 2000);
   }
 
-  function tambahBukti(rtlId: string, files: FileList | null) {
+  async function tambahBukti(rtlId: string, files: FileList | null) {
     if (!files || files.length === 0) return;
-    const baru: Bukti[] = Array.from(files).map((f, i) => ({
-      id: `b-${Date.now()}-${i}`,
-      nama: f.name.slice(0, 120),
-      ukuran: f.size,
-      tanggal: today,
-    }));
+    const daftar = Array.from(files);
+    const baru: Bukti[] = [];
+    for (let i = 0; i < daftar.length; i++) {
+      const f = daftar[i];
+      const id = `b-${Date.now()}-${i}`;
+      // Simpan isi file di IndexedDB supaya bukti benar-benar bisa dibuka.
+      try {
+        await simpanBuktiFile(id, f);
+      } catch {
+        /* kalau gagal, tetap catat nama filenya */
+      }
+      baru.push({ id, nama: f.name.slice(0, 120), ukuran: f.size, tanggal: today });
+    }
     update((prev) =>
       prev.map((r) =>
         r.id === rtlId
@@ -257,9 +272,25 @@ function Halaman({ boot }: { boot: Boot }) {
           : r,
       ),
     );
+    setBuktiError(false);
+    setCatatanOk(false);
+  }
+
+  // Buka isi file bukti dari IndexedDB di tab baru.
+  async function bukaBukti(b: Bukti) {
+    const file = await ambilBuktiFile(b.id);
+    if (!file) {
+      setBuktiError(true);
+      setCatatanOk(false);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    window.open(url, "_blank", "noopener");
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   function hapusBukti(rtlId: string, buktiId: string) {
+    void hapusBuktiFile(buktiId);
     update((prev) =>
       prev.map((r) => {
         if (r.id !== rtlId) return r;
@@ -267,6 +298,8 @@ function Halaman({ boot }: { boot: Boot }) {
         return log({ ...r, bukti: r.bukti.filter((x) => x.id !== buktiId) }, `Bukti dihapus: ${b?.nama ?? ""}`);
       }),
     );
+    setBuktiError(false);
+    setCatatanOk(false);
   }
 
   /* ----- Form RTL ----- */
@@ -830,7 +863,8 @@ function Halaman({ boot }: { boot: Boot }) {
                     }}
                   />
                 </label>
-                <p className="jd-info">Bukti yang bisa diunggah: foto, dokumen, video. Saat ini hanya nama file yang tersimpan (belum ke server).</p>
+                <p className="jd-info">Bukti disimpan di perangkat ini (IndexedDB). Saat pindah ke Supabase, isi file bisa diunggah ke Storage.</p>
+                {buktiError && <p className="mc-error" role="alert">Isi file bukti tidak ditemukan di perangkat ini (mungkin bukti diunggah dari perangkat lain).</p>}
                 {det.bukti.length === 0 ? (
                   <p className="mc-empty">Belum ada bukti pelaksanaan.</p>
                 ) : (
@@ -842,9 +876,14 @@ function Halaman({ boot }: { boot: Boot }) {
                         <small>
                           {formatUkuran(b.ukuran)} &middot; {formatTanggalPendek(fromDateKey(b.tanggal))}
                         </small>
-                        <button type="button" onClick={() => hapusBukti(det.id, b.id)} aria-label={`Hapus bukti ${b.nama}`}>
-                          <Trash2 size={14} />
-                        </button>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button type="button" onClick={() => bukaBukti(b)} className="dbd-detail-btn">
+                            Lihat
+                          </button>
+                          <button type="button" onClick={() => hapusBukti(det.id, b.id)} aria-label={`Hapus bukti ${b.nama}`}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
