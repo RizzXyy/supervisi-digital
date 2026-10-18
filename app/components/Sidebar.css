@@ -69,6 +69,16 @@
 
 /* ---------- Profil ---------- */
 .sb-user { display: flex; align-items: center; gap: 10px; padding: 0 16px 0 32px; }
+/* Tautan profil membungkus avatar + nama: harus flex supaya keduanya sejajar */
+.sb-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
 .sb-avatar {
   display: grid; place-items: center; flex-shrink: 0;
   width: 36px; height: 36px; border-radius: 50%;
