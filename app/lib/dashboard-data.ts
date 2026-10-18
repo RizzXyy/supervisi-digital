@@ -33,6 +33,9 @@ export type Rtl = { id: string; teacherId: string; status: "aktif" | "selesai" }
 
 export const SUPERVISOR = "Kepala Sekolah & Wakil Kepala Sekolah Bidang Kurikulum";
 
+// Tampil di bagian profil sidebar (untuk guru). Ganti dengan nama sekolahmu.
+export const SCHOOL_NAME = "SMP Negeri 1 Karawang";
+
 const HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 

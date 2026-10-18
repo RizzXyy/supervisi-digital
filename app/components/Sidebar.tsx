@@ -4,27 +4,61 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  House,
-  Users,
+  BrainCircuit,
   CalendarDays,
-  ClipboardPen,
-  MessagesSquare,
   ChartNoAxesCombined,
+  ClipboardCheck,
+  ClipboardPen,
   FileText,
+  FolderKanban,
+  House,
   LogOut,
+  MessagesSquare,
+  Users,
 } from "lucide-react";
 import { getSession, logout, type Role, type Session } from "../lib/auth";
+import { SCHOOL_NAME } from "../lib/dashboard-data";
 import "./Sidebar.css";
 
-// roles = siapa yang boleh melihat menu itu. Ubah sesuai kebutuhan.
-const MENU: { label: string; href: string; icon: typeof House; roles: Role[] }[] = [
-  { label: "Dashboard", href: "/dashboard", icon: House, roles: ["kepala_sekolah", "guru"] },
-  { label: "Data Guru", href: "/dashboard/data-guru", icon: Users, roles: ["kepala_sekolah"] },
-  { label: "Jadwal Supervisi", href: "/dashboard/jadwal", icon: CalendarDays, roles: ["kepala_sekolah", "guru"] },
-  { label: "Observasi", href: "/dashboard/observasi", icon: ClipboardPen, roles: ["kepala_sekolah"] },
-  { label: "Micro-Coaching", href: "/dashboard/micro-coaching", icon: MessagesSquare, roles: ["kepala_sekolah", "guru"] },
-  { label: "RTL Tracker", href: "/dashboard/rtl-tracker", icon: ChartNoAxesCombined, roles: ["kepala_sekolah", "guru"] },
-  { label: "Laporan", href: "/dashboard/laporan", icon: FileText, roles: ["kepala_sekolah", "guru"] },
+type Item = { label: string; href: string; icon: typeof House; roles: Role[] };
+type Group = { title?: string; items: Item[] };
+
+// roles = siapa yang boleh melihat menu itu.
+// Guru melihat menu berkelompok (Dokumen, Evaluasi, Pengembangan).
+// Kepala sekolah melihat daftar biasa tanpa judul kelompok.
+const GROUPS: Group[] = [
+  {
+    items: [
+      { label: "Dashboard", href: "/dashboard", icon: House, roles: ["kepala_sekolah", "guru"] },
+      { label: "Data Guru", href: "/dashboard/data-guru", icon: Users, roles: ["kepala_sekolah", "guru"] },
+      { label: "Jadwal Supervisi", href: "/dashboard/jadwal", icon: CalendarDays, roles: ["kepala_sekolah", "guru"] },
+      { label: "Observasi", href: "/dashboard/observasi", icon: ClipboardPen, roles: ["kepala_sekolah"] },
+    ],
+  },
+  {
+    title: "Dokumen",
+    items: [
+      { label: "RPP / Modul Ajar", href: "/dashboard/rpp", icon: FileText, roles: ["kepala_sekolah", "guru"] },
+      { label: "E-Portofolio", href: "/dashboard/e-portofolio", icon: FolderKanban, roles: ["guru"] },
+    ],
+  },
+  {
+    title: "Evaluasi",
+    items: [
+      { label: "Hasil Observasi Supervisi", href: "/dashboard/hasil-observasi", icon: ClipboardCheck, roles: ["guru"] },
+      { label: "AI Feedback", href: "/dashboard/ai-feedback", icon: BrainCircuit, roles: ["guru"] },
+    ],
+  },
+  {
+    title: "Pengembangan",
+    items: [
+      { label: "Micro-Coaching", href: "/dashboard/micro-coaching", icon: MessagesSquare, roles: ["kepala_sekolah", "guru"] },
+      { label: "RTL Tracker", href: "/dashboard/rtl-tracker", icon: ChartNoAxesCombined, roles: ["kepala_sekolah", "guru"] },
+    ],
+  },
+  {
+    items: [{ label: "Laporan", href: "/dashboard/laporan", icon: FileText, roles: ["kepala_sekolah"] }],
+  },
 ];
 
 const ROLE_LABEL: Record<Role, string> = { kepala_sekolah: "Kepala Sekolah", guru: "Guru" };
@@ -60,7 +94,29 @@ export default function Sidebar() {
     router.push("/login");
   }
 
-  const items = MENU.filter((m) => !user || m.roles.includes(user.role));
+  const visible = user
+    ? GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.roles.includes(user.role)) })).filter(
+        (g) => g.items.length > 0,
+      )
+    : [];
+  const grouped = user?.role === "guru";
+
+  function renderItem({ label, href, icon: Icon }: Item) {
+    return (
+      <Link
+        key={href}
+        href={href}
+        title={label}
+        aria-label={label}
+        className={`sb-item${isActive(href) ? " is-active" : ""}`}
+        aria-current={isActive(href) ? "page" : undefined}
+        onClick={() => setOpen(false)}
+      >
+        <Icon size={20} strokeWidth={1.8} />
+        <span>{label}</span>
+      </Link>
+    );
+  }
 
   return (
     <>
@@ -80,20 +136,18 @@ export default function Sidebar() {
         </button>
 
         <nav className="sb-nav" aria-label="Menu utama">
-          {items.map(({ label, href, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              title={label}
-              aria-label={label}
-              className={`sb-item${isActive(href) ? " is-active" : ""}`}
-              aria-current={isActive(href) ? "page" : undefined}
-              onClick={() => setOpen(false)}
-            >
-              <Icon size={20} strokeWidth={1.8} />
-              <span>{label}</span>
-            </Link>
-          ))}
+          {grouped
+            ? visible.map((g, i) => (
+                <div key={g.title ?? `grup-${i}`} className="sb-section">
+                  {g.title && (
+                    <div className="sb-group">
+                      <span>{g.title}</span>
+                    </div>
+                  )}
+                  {g.items.map(renderItem)}
+                </div>
+              ))
+            : visible.flatMap((g) => g.items).map(renderItem)}
         </nav>
 
         <div className="sb-user">
@@ -106,6 +160,7 @@ export default function Sidebar() {
           <div className="sb-user-info">
             <div className="sb-user-name">{user?.name ?? "..."}</div>
             <div className="sb-user-role">{user ? ROLE_LABEL[user.role] : ""}</div>
+            {user?.role === "guru" && <div className="sb-user-school">{SCHOOL_NAME}</div>}
           </div>
           <button type="button" className="sb-logout" onClick={handleLogout} aria-label="Keluar">
             <LogOut size={18} />

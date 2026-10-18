@@ -11,6 +11,7 @@ import {
   type KategoriKey,
   type Teacher,
 } from "../../lib/dashboard-data";
+import { getSession, type Session } from "../../lib/auth";
 import "../dashboard-home.css";
 
 const PAGE_SIZE = 8;
@@ -21,6 +22,7 @@ const EMPTY: FormState = { name: "", nip: "", mapel: "", kelas: "", score: "" };
 export default function DataGuruPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<Session | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"semua" | KategoriKey>("semua");
   const [page, setPage] = useState(1);
@@ -32,13 +34,15 @@ export default function DataGuruPage() {
 
   // Muat data guru, dan terima filter dari dashboard (?kategori=cukup)
   useEffect(() => {
-    queueMicrotask(() => {
+    const id = window.setTimeout(() => {
       setTeachers(loadTeachers());
       setReady(true);
       const k = new URLSearchParams(window.location.search).get("kategori");
       const found = KATEGORI.find((x) => x.key === k);
       if (found) setFilter(found.key);
-    });
+    }, 0);
+    getSession().then((s) => setUser(s));
+    return () => window.clearTimeout(id);
   }, []);
 
   // Esc menutup form
@@ -63,6 +67,8 @@ export default function DataGuruPage() {
   const current = Math.min(page, pages);
   const start = (current - 1) * PAGE_SIZE;
   const rows = filtered.slice(start, start + PAGE_SIZE);
+
+  const canEdit = user?.role === "kepala_sekolah"; // guru hanya melihat
 
   function set(key: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -153,9 +159,11 @@ export default function DataGuruPage() {
             aria-label="Cari nama atau NIP guru"
           />
         </label>
-        <button type="button" className="dg-add" onClick={openAdd}>
-          <Plus size={18} aria-hidden="true" /> Tambah Guru
-        </button>
+        {canEdit && (
+          <button type="button" className="dg-add" onClick={openAdd}>
+            <Plus size={18} aria-hidden="true" /> Tambah Guru
+          </button>
+        )}
       </div>
 
       <div className="dg-chips" role="group" aria-label="Filter kinerja">
@@ -194,13 +202,13 @@ export default function DataGuruPage() {
               <th>Kelas</th>
               <th>Skor</th>
               <th>Kinerja</th>
-              <th className="dg-aksi">Aksi</th>
+              {canEdit && <th className="dg-aksi">Aksi</th>}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="dg-empty-row">
+                <td colSpan={canEdit ? 7 : 6} className="dg-empty-row">
                   Tidak ada guru yang cocok dengan pencarian atau filter ini.
                 </td>
               </tr>
@@ -219,17 +227,19 @@ export default function DataGuruPage() {
                         {k.label}
                       </span>
                     </td>
-                    <td className="dg-aksi">
-                      <button
-                        type="button"
-                        className="dg-edit"
-                        onClick={() => openEdit(t)}
-                        aria-label={`Edit ${t.name}`}
-                        title="Edit"
-                      >
-                        <Pencil size={15} aria-hidden="true" />
-                      </button>
-                    </td>
+                    {canEdit && (
+                      <td className="dg-aksi">
+                        <button
+                          type="button"
+                          className="dg-edit"
+                          onClick={() => openEdit(t)}
+                          aria-label={`Edit ${t.name}`}
+                          title="Edit"
+                        >
+                          <Pencil size={15} aria-hidden="true" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })
