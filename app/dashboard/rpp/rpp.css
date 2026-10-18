@@ -1,0 +1,507 @@
+/* =========================================================
+   Gaya halaman RPP / Modul Ajar (class berawalan "rp-")
+   Pakai: tambahkan  import "./rpp.css";  di rpp/page.tsx
+   ========================================================= */
+
+/* ---------- Notifikasi ---------- */
+.rp-notice {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ---------- Kartu ringkasan ---------- */
+.rp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.rp-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.rp-stat:hover {
+  transform: translateY(-1px);
+}
+.rp-stat.is-on {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+}
+.rp-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.rp-stat-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rp-stat-text small {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+.rp-stat-text strong {
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+.rp-stat-text em {
+  font-size: 12px;
+  font-style: normal;
+  color: #64748b;
+}
+.rp-stat.tone-blue {
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+.rp-stat.tone-blue .rp-stat-icon,
+.rp-stat.tone-blue strong {
+  color: #2563eb;
+}
+.rp-stat.tone-green {
+  background: #ecfdf5;
+  border-color: #d1fae5;
+}
+.rp-stat.tone-green .rp-stat-icon,
+.rp-stat.tone-green strong {
+  color: #10b981;
+}
+.rp-stat.tone-orange {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.rp-stat.tone-orange .rp-stat-icon,
+.rp-stat.tone-orange strong {
+  color: #f59e0b;
+}
+.rp-stat.tone-red {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.rp-stat.tone-red .rp-stat-icon,
+.rp-stat.tone-red strong {
+  color: #ef4444;
+}
+
+/* ---------- Pencarian & filter ---------- */
+.rp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.rp-filters .rp-search {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: none;
+}
+.rp-field {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 180px;
+  max-width: 260px;
+}
+.rp-field > span:first-child {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+.rp-select {
+  position: relative;
+  display: block;
+}
+.rp-select select {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+.rp-select select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.rp-select svg {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+.rp-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #fff;
+  color: #2563eb;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rp-reset:hover {
+  background: #eff6ff;
+}
+
+/* ---------- Susunan utama ---------- */
+.rp-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.rp-side {
+  display: grid;
+  gap: 20px;
+}
+.rp-card {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+.rp-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.rp-card h2 svg {
+  color: #2563eb;
+}
+.rp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.rp-card-head span {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ---------- Tabel ---------- */
+.rp-table-wrap {
+  overflow-x: auto;
+}
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.rp-table th {
+  padding: 12px 14px;
+  background: #f4f7fd;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+.rp-table th:first-child {
+  border-radius: 10px 0 0 10px;
+}
+.rp-table th:last-child {
+  border-radius: 0 10px 10px 0;
+}
+.rp-table td {
+  padding: 14px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+  color: #334155;
+}
+.rp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.rp-table .rp-center {
+  text-align: center;
+}
+.rp-no {
+  color: #64748b;
+}
+.rp-strong {
+  font-weight: 600;
+  color: #0f172a;
+}
+.rp-nowrap {
+  white-space: nowrap;
+}
+.rp-doc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+.rp-doc-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.rp-doc-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rp-doc-text strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+.rp-doc-text small {
+  font-size: 12px;
+  color: #64748b;
+}
+.rp-doc-text .rp-reason {
+  color: #dc2626;
+  font-weight: 600;
+}
+.rp-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.rp-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.rp-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #fff;
+  color: #2563eb;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rp-view:hover {
+  background: #eff6ff;
+}
+.rp-more {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+}
+.rp-more:hover {
+  background: #f1f5f9;
+}
+
+/* ---------- Informasi, panduan, tips ---------- */
+.rp-info {
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+.rp-info p {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #334155;
+}
+.rp-steps {
+  margin: 14px 0 0 20px;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #334155;
+}
+.rp-tips {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+}
+.rp-tips svg {
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+.rp-tips strong {
+  display: block;
+  font-size: 14px;
+  color: #0f172a;
+}
+.rp-tips p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+/* ---------- Menu titik tiga ---------- */
+.rp-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 200px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+  transform: translateX(-100%); /* rata kanan dengan tombol */
+}
+.rp-menu button {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.rp-menu button:hover {
+  background: #f1f5f9;
+}
+.rp-menu button.is-danger {
+  color: #dc2626;
+}
+.rp-menu button.is-danger:hover {
+  background: #fef2f2;
+}
+
+/* ---------- Area unggah file ---------- */
+.rp-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 16px;
+  margin-bottom: 4px;
+  border: 2px dashed #bfdbfe;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+.rp-drop svg {
+  color: #2563eb;
+}
+.rp-drop strong {
+  font-size: 14px;
+  color: #0f172a;
+  word-break: break-all;
+}
+.rp-drop small {
+  font-size: 12px;
+  color: #64748b;
+}
+.rp-drop:hover,
+.rp-drop:focus-visible,
+.rp-drop.is-drag {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.rp-drop.has-file {
+  border-style: solid;
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+/* ---------- Form tolak & tombol bahaya ---------- */
+.rp-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.rp-textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.dbd-btn-primary.rp-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+.dbd-btn-primary.rp-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* ---------- Responsif ---------- */
+@media (max-width: 1200px) {
+  .rp-main {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1000px) {
+  .rp-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .rp-stats {
+    grid-template-columns: 1fr;
+  }
+  .rp-field {
+    max-width: none;
+  }
+}

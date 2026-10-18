@@ -47,6 +47,7 @@ import {
   type RppStatus,
 } from "../../lib/rpp-store";
 import "../dashboard-home.css";
+import "./rpp.css";
 
 const PAGE_SIZE = 8;
 const MAPEL_SARAN = [

@@ -1,14 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import {
-  BULAN_LENGKAP,
   STATUS_META,
-  STATUS_ORDER,
   SUPERVISOR,
+  daysUntil,
   formatTanggal,
-  formatTanggalPendek,
   formatWaktu,
   fromDateKey,
   getSupervisions,
@@ -16,17 +14,31 @@ import {
   saveSupervisions,
   statusOf,
   toDateKey,
-  type StatusJadwal,
   type Supervision,
   type Teacher,
 } from "../../lib/dashboard-data";
 import { getSession, type Session } from "../../lib/auth";
 import "../dashboard-home.css";
+import "./jadwal.css";
 
-const HARI_SINGKAT = ["MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB"];
+type Filter = "semua" | "mendatang" | "selesai";
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "semua", label: "Semua" },
+  { key: "mendatang", label: "Mendatang" },
+  { key: "selesai", label: "Selesai" },
+];
 
 type FormState = { teacherId: string; date: string; start: string; end: string; mapel: string; kelas: string };
 type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
+
+function hariLagi(d: Date) {
+  const n = daysUntil(d);
+  if (n < 0) return "";
+  if (n === 0) return "Hari ini";
+  if (n === 1) return "Besok";
+  return `${n} hari lagi`;
+}
 
 export default function JadwalPage() {
   const [sups, setSups] = useState<Supervision[]>([]);
@@ -35,10 +47,8 @@ export default function JadwalPage() {
   const [user, setUser] = useState<Session | null>(null);
   const [now, setNow] = useState<Date>(() => new Date(0));
 
-  const [view, setView] = useState({ y: 1970, m: 0 });
-  const [selected, setSelected] = useState<string | null>(null); // "YYYY-MM-DD"
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"semua" | StatusJadwal>("semua");
+  const [filter, setFilter] = useState<Filter>("semua");
 
   const [modal, setModal] = useState<ModalState>(null);
   const [form, setForm] = useState<FormState>({ teacherId: "", date: "", start: "", end: "", mapel: "", kelas: "" });
@@ -49,9 +59,7 @@ export default function JadwalPage() {
     const id = window.setTimeout(() => {
       setSups(getSupervisions());
       setTeachers(loadTeachers());
-      const d = new Date();
-      setNow(d);
-      setView({ y: d.getFullYear(), m: d.getMonth() });
+      setNow(new Date());
       setReady(true);
     }, 0);
     getSession().then((s) => setUser(s));
@@ -72,65 +80,33 @@ export default function JadwalPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [modal]);
 
-  const canEdit = user?.role === "kepala_sekolah"; // guru hanya melihat jadwal
+  // Hanya kepala sekolah yang boleh membuat, mengedit, dan menghapus jadwal. Guru hanya melihat.
+  const canEdit = user?.role === "kepala_sekolah";
 
   const nameMap = useMemo(() => new Map(teachers.map((t) => [t.id, t.name])), [teachers]);
   const nameOf = (id: string) => nameMap.get(id) ?? "-";
 
   const withStatus = useMemo(() => sups.map((s) => ({ s, st: statusOf(s, now) })), [sups, now]);
-
   const selesaiCount = withStatus.filter((x) => x.st === "selesai").length;
   const mendatangCount = withStatus.length - selesaiCount;
 
-  // Info per tanggal untuk titik di kalender
-  const dayInfo = useMemo(() => {
-    const map = new Map<string, { total: number; done: number }>();
-    for (const { s, st } of withStatus) {
-      const key = toDateKey(s.date);
-      const cur = map.get(key) ?? { total: 0, done: 0 };
-      map.set(key, { total: cur.total + 1, done: cur.done + (st === "selesai" ? 1 : 0) });
-    }
-    return map;
-  }, [withStatus]);
-
-  // Daftar di panel kanan: tanggal terpilih > hasil cari (semua bulan) > bulan yang tampil
-  const monthPrefix = `${view.y}-${String(view.m + 1).padStart(2, "0")}`;
-  const scope: "tanggal" | "cari" | "bulan" = selected ? "tanggal" : q.trim() ? "cari" : "bulan";
-
-  const items = useMemo(() => {
+  // Baris yang lolos filter, dikelompokkan per tanggal (kolom tanggal digabung seperti tabel aslinya)
+  const groups = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    return withStatus
-      .filter(({ s, st }) => {
-        if (statusFilter !== "semua" && st !== statusFilter) return false;
-        if (ql && !nameOf(s.teacherId).toLowerCase().includes(ql)) return false;
-        const key = toDateKey(s.date);
-        if (scope === "tanggal") return key === selected;
-        if (scope === "bulan") return key.startsWith(monthPrefix);
-        return true;
-      })
-      .sort((a, b) => a.s.date.getTime() - b.s.date.getTime() || (a.s.start ?? "").localeCompare(b.s.start ?? ""));
+    const rows = withStatus.filter(({ s, st }) => {
+      if (filter === "selesai" && st !== "selesai") return false;
+      if (filter === "mendatang" && st === "selesai") return false;
+      return !ql || nameOf(s.teacherId).toLowerCase().includes(ql);
+    });
+    rows.sort((a, b) => a.s.date.getTime() - b.s.date.getTime() || (a.s.start ?? "").localeCompare(b.s.start ?? ""));
+    const map = new Map<number, typeof rows>();
+    for (const r of rows) {
+      const key = r.s.date.getTime();
+      map.set(key, [...(map.get(key) ?? []), r]);
+    }
+    return [...map.values()];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [withStatus, nameMap, q, statusFilter, scope, selected, monthPrefix]);
-
-  // Sel kalender
-  const first = new Date(view.y, view.m, 1);
-  const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
-  const cells: (number | null)[] = [
-    ...Array.from({ length: first.getDay() }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-  const todayKey = toDateKey(now);
-
-  function shiftMonth(delta: number) {
-    const d = new Date(view.y, view.m + delta, 1);
-    setView({ y: d.getFullYear(), m: d.getMonth() });
-    setSelected(null);
-  }
-
-  function goToday() {
-    setView({ y: now.getFullYear(), m: now.getMonth() });
-    setSelected(null);
-  }
+  }, [withStatus, nameMap, q, filter]);
 
   function setField(key: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -148,13 +124,14 @@ export default function JadwalPage() {
   }
 
   function openNew() {
-    setForm({ teacherId: "", date: selected ?? todayKey, start: "", end: "", mapel: "", kelas: "" });
+    setForm({ teacherId: "", date: toDateKey(now), start: "", end: "", mapel: "", kelas: "" });
     setError("");
     setConfirmDel(false);
     setModal({ mode: "new" });
   }
 
   function openEdit(s: Supervision) {
+    if (!canEdit) return;
     setForm({
       teacherId: s.teacherId,
       date: toDateKey(s.date),
@@ -211,9 +188,8 @@ export default function JadwalPage() {
 
     setSups(next);
     saveSupervisions(next);
-    // Arahkan kalender ke jadwal yang baru disimpan supaya langsung terlihat
-    setView({ y: date.getFullYear(), m: date.getMonth() });
-    setSelected(form.date);
+    setFilter("semua");
+    setQ("");
     setModal(null);
   }
 
@@ -237,183 +213,127 @@ export default function JadwalPage() {
     );
   }
 
-  const scopeLabel =
-    scope === "tanggal"
-      ? formatTanggal(fromDateKey(selected!))
-      : scope === "cari"
-        ? "Hasil pencarian"
-        : `${BULAN_LENGKAP[view.m]} ${view.y}`;
-
   const sortedTeachers = [...teachers].sort((a, b) => a.name.localeCompare(b.name));
+  let no = 0;
 
   return (
     <div className="dbd">
-      <div className="jd-top">
-        <header className="dg-head">
-          <h1>Jadwal Supervisi</h1>
-          <div className="jd-meta">
-            <span>
-              {sups.length} jadwal: {selesaiCount} selesai, {mendatangCount} mendatang
-            </span>
-            <span>
-              Supervisor: <strong>{SUPERVISOR}</strong>
-            </span>
-          </div>
-        </header>
+      <header className="dg-head">
+        <h1>Jadwal Supervisi</h1>
+        <div className="jd-meta">
+          <span>
+            {sups.length} jadwal: {selesaiCount} selesai, {mendatangCount} mendatang
+          </span>
+          <span>
+            Supervisor: <strong>{SUPERVISOR}</strong>
+          </span>
+        </div>
+      </header>
+
+      <div className="jt-tools">
+        <label className="jt-search">
+          <Search aria-hidden="true" />
+          <input
+            type="search"
+            placeholder="Cari nama guru"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Cari nama guru"
+          />
+        </label>
         {canEdit && (
-          <button type="button" className="dg-add" onClick={openNew}>
-            <Plus size={18} aria-hidden="true" /> Buat Jadwal
+          <button type="button" className="jt-add" onClick={openNew}>
+            <Plus aria-hidden="true" /> Buat Jadwal
           </button>
         )}
       </div>
 
-      <div className="jd-layout">
-        {/* Kalender */}
-        <div className="jd-cal-col">
-          <section className="jd-cal" aria-label="Kalender jadwal supervisi">
-            <div className="jd-cal-head">
-              <button type="button" className="jd-nav" onClick={() => shiftMonth(-1)} aria-label="Bulan sebelumnya">
-                <ChevronLeft size={18} />
-              </button>
-              <strong>
-                {BULAN_LENGKAP[view.m]} {view.y}
-              </strong>
-              <button type="button" className="jd-nav" onClick={() => shiftMonth(1)} aria-label="Bulan berikutnya">
-                <ChevronRight size={18} />
-              </button>
-            </div>
+      <div className="jt-chips" role="group" aria-label="Filter status">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className={`jt-chip${filter === f.key ? " is-on" : ""}`}
+            onClick={() => setFilter(f.key)}
+            aria-pressed={filter === f.key}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-            <div className="jd-week" aria-hidden="true">
-              {HARI_SINGKAT.map((h) => (
-                <span key={h}>{h}</span>
-              ))}
-            </div>
-
-            <div className="jd-grid">
-              {cells.map((day, i) => {
-                if (day === null) return <span key={`kosong-${i}`} />;
-                const key = `${monthPrefix}-${String(day).padStart(2, "0")}`;
-                const info = dayInfo.get(key);
-                const cls = [
-                  "jd-day",
-                  key === todayKey ? "is-today" : "",
-                  key === selected ? "is-selected" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={cls}
-                    onClick={() => setSelected((prev) => (prev === key ? null : key))}
-                    aria-pressed={key === selected}
-                    aria-label={`${day} ${BULAN_LENGKAP[view.m]} ${view.y}${info ? `, ${info.total} jadwal` : ""}`}
-                  >
-                    {day}
-                    {info && <span className={`jd-dot${info.done === info.total ? " is-done" : ""}`} />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="jd-cal-foot">
-              <div className="jd-legend">
-                <span>
-                  <i /> Ada jadwal
-                </span>
-                <span>
-                  <i className="is-done" /> Sudah selesai
-                </span>
-              </div>
-              <button type="button" className="jd-today-btn" onClick={goToday}>
-                Hari ini
-              </button>
-            </div>
-          </section>
-        </div>
-
-        {/* Daftar jadwal */}
-        <section className="jd-panel" aria-label="Daftar jadwal supervisi">
-          <h2>Jadwal Supervisi</h2>
-
-          <label className="dg-search">
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="search"
-              placeholder="Cari nama guru"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label="Cari nama guru"
-            />
-          </label>
-
-          <label className="jd-select">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as "semua" | StatusJadwal)}
-              aria-label="Filter status"
-            >
-              <option value="semua">Semua Status</option>
-              {STATUS_ORDER.map((k) => (
-                <option key={k} value={k}>
-                  {STATUS_META[k].label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={16} aria-hidden="true" />
-          </label>
-
-          <div className="jd-scope">
-            <span>
-              {scopeLabel} · {items.length} jadwal
-            </span>
-            {scope === "tanggal" && (
-              <button type="button" onClick={() => setSelected(null)}>
-                Lihat satu bulan
-              </button>
-            )}
-          </div>
-
-          {items.length === 0 ? (
-            <p className="jd-empty">
-              Tidak ada jadwal
-              {scope === "tanggal" ? " pada tanggal ini" : scope === "bulan" ? " di bulan ini" : " yang cocok"}.
-            </p>
-          ) : (
-            <ul className="jd-list">
-              {items.map(({ s, st }) => {
-                const meta = STATUS_META[st];
-                const waktu = formatWaktu(s);
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      className={`jd-card${canEdit ? "" : " is-readonly"}`}
-                      onClick={() => canEdit && openEdit(s)}
+      <div className="jt-table-wrap">
+        <table className="jt-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Hari dan Tanggal Pelaksanaan</th>
+              <th>Nama Guru yang Disupervisi</th>
+              <th>Mapel / Urusan Adm. yang Disupervisi</th>
+              <th>Kelas</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="jt-empty">
+                  Tidak ada jadwal yang cocok dengan pencarian atau filter ini.
+                </td>
+              </tr>
+            ) : (
+              groups.map((list) =>
+                list.map(({ s, st }, i) => {
+                  no += 1;
+                  const meta = STATUS_META[st];
+                  const waktu = formatWaktu(s);
+                  const lagi = st === "selesai" ? "" : hariLagi(s.date);
+                  return (
+                    <tr
+                      key={s.id}
+                      className={canEdit ? "jt-row" : undefined}
+                      onClick={canEdit ? () => openEdit(s) : undefined}
+                      onKeyDown={
+                        canEdit
+                          ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                openEdit(s);
+                              }
+                            }
+                          : undefined
+                      }
+                      tabIndex={canEdit ? 0 : undefined}
+                      aria-label={canEdit ? `Ubah jadwal ${nameOf(s.teacherId)}` : undefined}
                     >
-                      <div className="jd-card-top">
-                        <div>
-                          <strong>{formatTanggalPendek(s.date)}</strong>
-                          <span className="t">{waktu || formatTanggal(s.date).split(",")[0]}</span>
-                        </div>
-                        <span className="jd-badge" style={{ background: meta.bg, color: meta.fg }}>
+                      <td className="jt-no">{no}</td>
+                      {i === 0 && (
+                        <td className="jt-date" rowSpan={list.length}>
+                          <span>{formatTanggal(s.date)}</span>
+                          {lagi && <small>{lagi}</small>}
+                        </td>
+                      )}
+                      <td className="jt-name">{nameOf(s.teacherId)}</td>
+                      <td>
+                        {s.mapel}
+                        {waktu && <span className="jt-sub">{waktu}</span>}
+                      </td>
+                      <td className="jt-kelas">{s.kelas}</td>
+                      <td>
+                        <span
+                          className={`jt-pill${st === "selesai" ? " is-selesai" : ""}`}
+                          style={st === "selesai" ? undefined : { background: meta.bg, color: meta.fg }}
+                        >
                           {meta.label}
                         </span>
-                      </div>
-                      <div className="jd-card-who">
-                        <strong>{nameOf(s.teacherId)}</strong>
-                        <span>
-                          {s.kelas} - {s.mapel}
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+                      </td>
+                    </tr>
+                  );
+                }),
+              )
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Form buat / edit jadwal */}
@@ -423,11 +343,11 @@ export default function JadwalPage() {
             className="dbd-modal"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="jd-modal-title"
+            aria-labelledby="jt-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="dbd-modal-head">
-              <h3 id="jd-modal-title">{modal.mode === "edit" ? "Detail Jadwal" : "Buat Jadwal Supervisi"}</h3>
+              <h3 id="jt-modal-title">{modal.mode === "edit" ? "Ubah Jadwal" : "Buat Jadwal Supervisi"}</h3>
               <button type="button" onClick={() => setModal(null)} aria-label="Tutup">
                 <X size={18} />
               </button>
@@ -494,11 +414,7 @@ export default function JadwalPage() {
 
               <div className="dbd-modal-actions">
                 {modal.mode === "edit" && (
-                  <button
-                    type="button"
-                    className={`jd-del${confirmDel ? " is-confirm" : ""}`}
-                    onClick={handleDelete}
-                  >
+                  <button type="button" className={`jd-del${confirmDel ? " is-confirm" : ""}`} onClick={handleDelete}>
                     {confirmDel ? "Ya, hapus" : "Hapus"}
                   </button>
                 )}

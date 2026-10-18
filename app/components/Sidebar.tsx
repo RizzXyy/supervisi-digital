@@ -151,17 +151,25 @@ export default function Sidebar() {
         </nav>
 
         <div className="sb-user">
-          <div className="sb-avatar" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#0b2a6b">
-              <circle cx="12" cy="8" r="4.5" />
-              <path d="M3 21c0-4.4 4-7 9-7s9 2.6 9 7z" />
-            </svg>
-          </div>
-          <div className="sb-user-info">
-            <div className="sb-user-name">{user?.name ?? "..."}</div>
-            <div className="sb-user-role">{user ? ROLE_LABEL[user.role] : ""}</div>
-            {user?.role === "guru" && <div className="sb-user-school">{SCHOOL_NAME}</div>}
-          </div>
+          <Link
+            href="/dashboard/profil"
+            className="sb-profile"
+            title="Profil saya"
+            aria-label="Buka halaman profil"
+            onClick={() => setOpen(false)}
+          >
+            <div className="sb-avatar" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#0b2a6b">
+                <circle cx="12" cy="8" r="4.5" />
+                <path d="M3 21c0-4.4 4-7 9-7s9 2.6 9 7z" />
+              </svg>
+            </div>
+            <div className="sb-user-info">
+              <div className="sb-user-name">{user?.name ?? "..."}</div>
+              <div className="sb-user-role">{user ? ROLE_LABEL[user.role] : ""}</div>
+              {user?.role === "guru" && <div className="sb-user-school">{SCHOOL_NAME}</div>}
+            </div>
+          </Link>
           <button type="button" className="sb-logout" onClick={handleLogout} aria-label="Keluar">
             <LogOut size={18} />
           </button>

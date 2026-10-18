@@ -64,6 +64,8 @@
 
 /* ---------- Profil ---------- */
 .sb-user { display: flex; align-items: center; gap: 10px; padding: 0 16px 0 32px; }
+.sb-profile { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 5px 6px; margin: -5px -6px; border-radius: 10px; cursor: pointer; }
+.sb-profile:hover { background: #eef3fb; }
 .sb-avatar {
   display: grid; place-items: center; flex-shrink: 0;
   width: 36px; height: 36px; border-radius: 50%;
