@@ -49,9 +49,18 @@ function parseJson(text: string): Record<string, unknown> {
 }
 
 export async function buatFeedbackGemini(payload: FeedbackPayload): Promise<HasilAi> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new AiError("GEMINI_API_KEY belum diatur di server.", 500);
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const key = process.env.GEMINI_API_KEY?.trim();
+  if (!key) {
+    // Paling sering karena server belum di-restart setelah .env.local diubah.
+    console.error(
+      "[ai-feedback] GEMINI_API_KEY kosong. Env dibaca saat server mulai - tambahkan di .env.local lalu restart `next dev` / `next start`."
+    );
+    throw new AiError(
+      "GEMINI_API_KEY belum terbaca server. Tambahkan di .env.local lalu restart server.",
+      500
+    );
+  }
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
   let res: Response;
   try {
@@ -77,7 +86,11 @@ export async function buatFeedbackGemini(payload: FeedbackPayload): Promise<Hasi
     console.error("Gemini error", res.status, detail.slice(0, 500));
     if (res.status === 429) throw new AiError("Kuota Gemini habis atau terlalu banyak permintaan. Coba lagi sebentar.", 429);
     if (res.status === 401 || res.status === 403) throw new AiError("API key Gemini tidak valid atau tidak punya akses.", 502);
-    if (res.status === 404) throw new AiError(`Model "${model}" tidak ditemukan. Ubah GEMINI_MODEL di environment.`, 502);
+    if (res.status === 404)
+      throw new AiError(
+        `Model "${model}" tidak tersedia. Ubah GEMINI_MODEL di .env.local (mis. gemini-3.8-flash) lalu restart server.`,
+        502
+      );
     throw new AiError("Gemini menolak permintaan. Cek log server untuk detailnya.", 502);
   }
 
