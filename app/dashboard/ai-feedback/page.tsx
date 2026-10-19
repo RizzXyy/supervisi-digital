@@ -36,7 +36,8 @@ import {
   type Supervision,
   type Teacher,
 } from "../../lib/dashboard-data";
-import { loadRpp, type RppDoc, type RppStatus } from "../../lib/rpp-store";
+import { type RppDoc, type RppStatus } from "../../lib/rpp-store";
+import { listRpp } from "../../lib/rpp-supabase";
 import { loadObservasi, stempelWaktu, type Observasi } from "../../lib/observasi-data";
 import { buatPayload, loadCoaching, type AiFeedback, type Coaching } from "../../lib/coaching-data";
 import {
@@ -111,11 +112,14 @@ export default function AiFeedbackPage() {
     const id = window.setTimeout(() => {
       setTeachers(loadTeachers());
       setSups(getSupervisions());
-      setDocs(loadRpp());
       setObservasi(loadObservasi());
       setCoaching(loadCoaching());
       setRecords(loadFeedback());
-      setReady(true);
+      // Daftar dokumen RPP diambil dari Supabase agar sama dengan halaman RPP
+      listRpp()
+        .then((list) => setDocs(list))
+        .catch(() => setDocs([]))
+        .finally(() => setReady(true));
     }, 0);
     getSession().then((s) => setUser(s));
     return () => window.clearTimeout(id);

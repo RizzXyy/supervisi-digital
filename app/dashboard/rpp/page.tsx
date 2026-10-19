@@ -31,21 +31,18 @@ import {
 } from "lucide-react";
 import { getSession, type Session } from "../../lib/auth";
 import { formatTanggalPendek, loadTeachers, type Teacher } from "../../lib/dashboard-data";
+import { ACCEPTED, RPP_STATUS, formatSize, validateFile, type RppStatus } from "../../lib/rpp-store";
 import {
-  ACCEPTED,
-  MIME,
-  RPP_STATUS,
-  deleteFile,
-  fileExt,
-  formatSize,
-  getFile,
-  loadRpp,
-  putFile,
-  saveRpp,
-  validateFile,
-  type RppDoc,
-  type RppStatus,
-} from "../../lib/rpp-store";
+  approveRpp,
+  createRpp,
+  getRppUrl,
+  importLocalRpp,
+  listRpp,
+  rejectRpp,
+  removeRpp,
+  updateRpp,
+  type RppDocCloud,
+} from "../../lib/rpp-supabase";
 import "../dashboard-home.css";
 import "./rpp.css";
 
@@ -60,11 +57,14 @@ type DocModal = { mode: "new" } | { mode: "edit"; id: string } | null;
 type FormState = { judul: string; mapel: string; kelas: string };
 type MenuState = { id: string; x: number; y: number } | null;
 
+const pesan = (e: unknown, fallback = "Terjadi kesalahan.") => (e instanceof Error ? e.message : fallback);
+
 export default function RppPage() {
   const [user, setUser] = useState<Session | null>(null);
-  const [docs, setDocs] = useState<RppDoc[]>([]);
+  const [docs, setDocs] = useState<RppDocCloud[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const [q, setQ] = useState("");
   const [fMapel, setFMapel] = useState("semua");
@@ -89,15 +89,58 @@ export default function RppPage() {
 
   const isSup = user?.role === "kepala_sekolah";
 
+  // Muat sesi, daftar dokumen dari Supabase, dan data guru (untuk saran mapel/kelas)
   useEffect(() => {
-    getSession().then((s) => setUser(s));
-    const id = window.setTimeout(() => {
-      setDocs(loadRpp());
-      setTeachers(loadTeachers());
-      setReady(true);
-    }, 0);
-    return () => window.clearTimeout(id);
+    let active = true;
+    getSession().then((s) => {
+      if (active) setUser(s);
+    });
+
+    (async () => {
+      let awal: RppDocCloud[] = [];
+      let muatOk = false;
+      try {
+        awal = await listRpp();
+        muatOk = true;
+        if (active) setDocs(awal);
+      } catch (e) {
+        if (active) setLoadError(pesan(e, "Gagal memuat dokumen."));
+      } finally {
+        if (active) setReady(true); // tampilan tidak menunggu impor
+      }
+
+      // Pindahkan dokumen RPP lama (localStorage/IndexedDB) ke Supabase, sekali jalan.
+      // Berjalan setelah tampilan siap; kalau gagal, dokumen lama tetap aman di browser.
+      if (!active || !muatOk) return;
+      try {
+        const { imported, failed } = await importLocalRpp(awal);
+        if (!active) return;
+        if (imported > 0) {
+          setDocs(await listRpp());
+          setNotice(`${imported} dokumen lama dipindahkan ke Supabase.`);
+        } else if (failed > 0) {
+          setNotice("Dokumen lama di browser belum bisa dipindahkan. Akan dicoba lagi nanti.");
+        }
+      } catch {
+        /* impor gagal: biarkan, dokumen lama tetap di browser */
+      }
+    })();
+
+    const id = window.setTimeout(() => setTeachers(loadTeachers()), 0);
+    return () => {
+      active = false;
+      window.clearTimeout(id);
+    };
   }, []);
+
+  async function refresh() {
+    try {
+      setDocs(await listRpp());
+      setLoadError("");
+    } catch (e) {
+      setLoadError(pesan(e, "Gagal memuat dokumen."));
+    }
+  }
 
   // Pemberitahuan hilang sendiri
   useEffect(() => {
@@ -137,11 +180,8 @@ export default function RppPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [anyModal]);
 
-  // Guru hanya melihat dokumennya sendiri; kepala sekolah melihat semua
-  const mine = useMemo(
-    () => (isSup ? docs : docs.filter((d) => d.ownerName === user?.name)),
-    [docs, isSup, user?.name],
-  );
+  // Database sudah membatasi: guru hanya menerima dokumennya sendiri, kepala sekolah menerima semua
+  const mine = docs;
 
   const counts = {
     total: mine.length,
@@ -195,7 +235,7 @@ export default function RppPage() {
     setDocModal({ mode: "new" });
   }
 
-  function openEdit(d: RppDoc) {
+  function openEdit(d: RppDocCloud) {
     setForm({ judul: d.judul, mapel: d.mapel, kelas: d.kelas });
     setFile(null);
     setError("");
@@ -242,6 +282,10 @@ export default function RppPage() {
       setError("Judul, mata pelajaran, dan kelas wajib diisi.");
       return;
     }
+    if (judul.length < 3) {
+      setError("Judul minimal 3 karakter.");
+      return;
+    }
     if (docModal.mode === "new" && !file) {
       setError("Pilih file RPP atau Modul Ajar (PDF atau DOCX).");
       return;
@@ -249,96 +293,33 @@ export default function RppPage() {
 
     setBusy(true);
     try {
-      const nowIso = new Date().toISOString();
-      let next: RppDoc[];
-
       if (docModal.mode === "new" && file) {
-        const id = `rpp-${Date.now()}`;
-        await putFile(id, file);
-        const doc: RppDoc = {
-          id,
-          ownerName: user.name,
-          judul,
-          mapel,
-          kelas,
-          fileName: file.name,
-          fileType: file.type || MIME[fileExt(file.name)],
-          fileSize: file.size,
-          uploadedAt: nowIso,
-          status: "menunggu",
-          catatan: "",
-          verifiedAt: null,
-        };
-        next = [doc, ...docs];
+        await createRpp({ judul, mapel, kelas, file });
         setNotice("Dokumen berhasil diunggah dan menunggu verifikasi Kepala Sekolah.");
       } else if (docModal.mode === "edit") {
-        const id = docModal.id;
-        if (file) await putFile(id, file);
-        next = docs.map((d) =>
-          d.id === id
-            ? {
-                ...d,
-                judul,
-                mapel,
-                kelas,
-                ...(file
-                  ? {
-                      fileName: file.name,
-                      fileType: file.type || MIME[fileExt(file.name)],
-                      fileSize: file.size,
-                      uploadedAt: nowIso,
-                    }
-                  : {}),
-                // setelah diedit, dokumen diajukan ulang untuk diverifikasi
-                status: "menunggu" as RppStatus,
-                catatan: "",
-                verifiedAt: null,
-              }
-            : d,
-        );
+        const target = docs.find((d) => d.id === docModal.id);
+        if (!target) {
+          setError("Dokumen tidak ditemukan. Muat ulang halaman.");
+          return;
+        }
+        await updateRpp(target, { judul, mapel, kelas, file });
         setNotice("Perubahan disimpan dan dokumen diajukan ulang untuk diverifikasi.");
       } else {
         return;
       }
 
-      setDocs(next);
-      saveRpp(next);
+      await refresh();
       setFStatus("semua");
       setPage(1);
       setDocModal(null);
-    } catch {
-      setError("File gagal disimpan di browser. Coba lagi, atau gunakan file yang lebih kecil.");
+    } catch (err) {
+      setError(pesan(err, "Dokumen gagal disimpan. Coba lagi."));
     } finally {
       setBusy(false);
     }
   }
 
   /* ---------- Lihat / unduh ---------- */
-  async function fetchBlob(d: RppDoc) {
-    const blob = await getFile(d.id);
-    if (!blob) return null;
-    return new Blob([blob], { type: d.fileType || MIME[fileExt(d.fileName)] });
-  }
-
-  async function viewDoc(d: RppDoc) {
-    const w = window.open("about:blank", "_blank"); // dibuka dulu agar tidak diblokir popup
-    try {
-      const blob = await fetchBlob(d);
-      if (!blob) {
-        w?.close();
-        setNotice("File tidak ditemukan di browser ini. Unggah ulang dokumennya.");
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      if (w) w.location.href = url;
-      else downloadUrl(url, d.fileName);
-      window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-    } catch {
-      w?.close();
-      setNotice("File gagal dibuka.");
-    }
-  }
-
   function downloadUrl(url: string, name: string) {
     const a = document.createElement("a");
     a.href = url;
@@ -348,61 +329,67 @@ export default function RppPage() {
     a.remove();
   }
 
-  async function downloadDoc(d: RppDoc) {
+  async function viewDoc(d: RppDocCloud) {
+    const w = window.open("about:blank", "_blank"); // dibuka dulu agar tidak diblokir popup
     try {
-      const blob = await fetchBlob(d);
-      if (!blob) {
-        setNotice("File tidak ditemukan di browser ini. Unggah ulang dokumennya.");
-        return;
-      }
-      const url = URL.createObjectURL(blob);
+      const url = await getRppUrl(d.filePath);
+      if (w) w.location.href = url;
+      else downloadUrl(url, d.fileName);
+    } catch (err) {
+      w?.close();
+      setNotice(pesan(err, "File gagal dibuka."));
+    }
+  }
+
+  async function downloadDoc(d: RppDocCloud) {
+    try {
+      const url = await getRppUrl(d.filePath, d.fileName);
       downloadUrl(url, d.fileName);
-      window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    } catch {
-      setNotice("File gagal diunduh.");
+    } catch (err) {
+      setNotice(pesan(err, "File gagal diunduh."));
     }
   }
 
   /* ---------- Verifikasi & hapus ---------- */
-  function approve(id: string) {
-    const next = docs.map((d) =>
-      d.id === id ? { ...d, status: "disetujui" as RppStatus, catatan: "", verifiedAt: new Date().toISOString() } : d,
-    );
-    setDocs(next);
-    saveRpp(next);
-    setNotice("Dokumen disetujui.");
+  async function approve(id: string) {
+    try {
+      await approveRpp(id);
+      await refresh();
+      setNotice("Dokumen disetujui.");
+    } catch (err) {
+      setNotice(pesan(err, "Gagal menyetujui dokumen."));
+    }
   }
 
-  function submitReject(e: FormEvent<HTMLFormElement>) {
+  async function submitReject(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!rejectId) return;
     if (!reason.trim()) {
       setReasonError("Tuliskan alasan penolakan agar guru dapat memperbaikinya.");
       return;
     }
-    const next = docs.map((d) =>
-      d.id === rejectId
-        ? { ...d, status: "ditolak" as RppStatus, catatan: reason.trim(), verifiedAt: new Date().toISOString() }
-        : d,
-    );
-    setDocs(next);
-    saveRpp(next);
-    setRejectId(null);
-    setNotice("Dokumen ditolak. Alasan dikirim ke guru.");
+    try {
+      await rejectRpp(rejectId, reason);
+      await refresh();
+      setRejectId(null);
+      setNotice("Dokumen ditolak. Alasan dikirim ke guru.");
+    } catch (err) {
+      setReasonError(pesan(err, "Gagal menolak dokumen."));
+    }
   }
 
   async function confirmDelete() {
-    const id = deleteId;
-    if (!id) return;
+    const target = deleteId ? docs.find((d) => d.id === deleteId) : undefined;
+    if (!target) return;
     try {
-      await deleteFile(id);
-    } catch {
-      /* file mungkin sudah tidak ada; data tetap dihapus */
+      await removeRpp(target);
+      await refresh();
+      setDeleteId(null);
+      setNotice("Dokumen dihapus.");
+    } catch (err) {
+      setDeleteId(null);
+      setNotice(pesan(err, "Gagal menghapus dokumen."));
     }
-    const next = docs.filter((d) => d.id !== id);
-    setDocs(next);
-    saveRpp(next);
-    setDeleteId(null);
-    setNotice("Dokumen dihapus.");
   }
 
   function openMenu(e: ReactMouseEvent<HTMLButtonElement>, id: string) {
@@ -456,6 +443,12 @@ export default function RppPage() {
       {notice && (
         <p className="rp-notice" role="status">
           {notice}
+        </p>
+      )}
+
+      {loadError && (
+        <p className="dg-error" role="alert" style={{ marginTop: 14 }}>
+          {loadError}
         </p>
       )}
 

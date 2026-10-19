@@ -68,18 +68,18 @@ export async function getSession(): Promise<Session | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, nip, role")
+    .select("id, name, role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   // Kalau profil belum ada, pakai data bawaan dari akun.
   const meta = user.user_metadata ?? {};
   return {
     id: user.id,
-    name: profile?.full_name || meta.full_name || user.email || "Pengguna",
-    email: profile?.email || user.email || "",
+    name: profile?.name || meta.full_name || user.email || "Pengguna",
+    email: user.email || "",
     role: (profile?.role || meta.role || "guru") as Role,
-    nip: profile?.nip ?? meta.nip ?? null,
+    nip: meta.nip ?? null,
   };
 }
 
