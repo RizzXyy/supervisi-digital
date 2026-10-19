@@ -4,15 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Download } from "lucide-react";
 import { useRoleGuard } from "../../lib/use-role-guard";
 import { getSession, type Role, type Session } from "../../lib/auth";
-import { formatTanggalPendek, fromDateKey, loadTeachers, type Teacher } from "../../lib/dashboard-data";
-import {
-  INSTRUMEN,
-  STATUS_OBS,
-  hitungSkor,
-  inisial,
-  loadObservasi,
-  type Observasi,
-} from "../../lib/observasi-data";
+import { formatTanggalPendek, fromDateKey } from "../../lib/dashboard-data";
+import { INSTRUMEN, STATUS_OBS, hitungSkor, inisial, type Observasi } from "../../lib/observasi-data";
+import { listObservasiCloud } from "../../lib/observasi-supabase";
 import "../dashboard-home.css";
 import "../observasi/observasi.css";
 
@@ -21,38 +15,50 @@ const ALLOW: Role[] = ["guru"];
 
 const TAB = ["Kegiatan Pembelajaran", "Catatan", "Rekomendasi"] as const;
 
+// Nama dibandingkan tanpa gelar, sama seperti kebijakan RLS di Supabase
+// ("Budi Santoso, S.Pd" dan "Budi Santoso" dianggap orang yang sama).
+function normNama(teks?: string) {
+  return (teks ?? "").split(",")[0].trim().toLowerCase();
+}
+
 export default function HasilObservasiPage() {
   const boleh = useRoleGuard(ALLOW);
   const [user, setUser] = useState<Session | null>(null);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [items, setItems] = useState<Observasi[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      setTeachers(loadTeachers());
-      setItems(loadObservasi());
-      setReady(true);
-    }, 0);
-    getSession().then((s) => setUser(s));
-    return () => window.clearTimeout(id);
+    let active = true;
+    getSession().then((s) => active && setUser(s));
+    // Data diambil dari Supabase. RLS di server sudah membatasi hanya hasil
+    // yang diterbitkan atas nama pemilik akun ini; saringan di bawah hanya
+    // jaring pengaman tambahan.
+    listObservasiCloud()
+      .then((list) => {
+        if (!active) return;
+        setItems(list);
+        setReady(true);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "Gagal memuat hasil observasi.");
+        setReady(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // Cocokkan akun login dengan data guru berdasarkan nama.
-  const guru = useMemo(() => {
-    if (!user) return undefined;
-    const n = user.name.trim().toLowerCase();
-    return teachers.find((t) => t.name.trim().toLowerCase() === n);
-  }, [user, teachers]);
-
-  // Guru hanya melihat hasil yang sudah diterbitkan kepala sekolah.
+  // Guru hanya melihat hasil yang sudah diterbitkan kepala sekolah atas namanya.
   const hasil = useMemo(() => {
-    if (!guru) return [];
+    const nama = normNama(user?.name);
+    if (!nama) return [];
     return items
-      .filter((o) => o.teacherId === guru.id && o.diterbitkan)
+      .filter((o) => o.diterbitkan && normNama(o.teacherName) === nama)
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [items, guru]);
+  }, [items, user]);
 
   if (!ready || !boleh) {
     return (
@@ -64,8 +70,8 @@ export default function HasilObservasiPage() {
 
   const det = detailId ? hasil.find((o) => o.id === detailId) : undefined;
 
-  if (det && guru) {
-    return <HasilDetail o={det} guru={guru.name} onBack={() => setDetailId(null)} />;
+  if (det && user) {
+    return <HasilDetail o={det} guru={user.name} onBack={() => setDetailId(null)} />;
   }
 
   return (
@@ -75,13 +81,10 @@ export default function HasilObservasiPage() {
         <p>Hasil observasi yang sudah diterbitkan Kepala Sekolah untuk Anda.</p>
       </header>
 
-      {!guru ? (
+      {error ? (
         <div className="dbd-card" style={{ marginTop: 24, textAlign: "center", padding: "48px 20px" }}>
           <ClipboardCheck size={36} aria-hidden="true" style={{ color: "#94a3b8" }} />
-          <p style={{ marginTop: 12, fontSize: 14, color: "#6b7a90" }}>
-            Akun ini belum terhubung dengan data guru, jadi hasil observasi belum dapat ditampilkan. Hubungi Kepala
-            Sekolah.
-          </p>
+          <p style={{ marginTop: 12, fontSize: 14, color: "#6b7a90" }}>{error}</p>
         </div>
       ) : hasil.length === 0 ? (
         <div className="dbd-card" style={{ marginTop: 24, textAlign: "center", padding: "48px 20px" }}>

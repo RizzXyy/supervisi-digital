@@ -26,7 +26,8 @@ import {
   toDateKey,
   type Teacher,
 } from "../../lib/dashboard-data";
-import { STATUS_OBS, inisial, loadObservasi, stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { STATUS_OBS, inisial, stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { listObservasiCloud } from "../../lib/observasi-supabase";
 import { getAccessToken } from "../../lib/auth";
 import {
   STATUS_COACHING,
@@ -87,10 +88,17 @@ export default function MicroCoachingPage() {
   const [boot, setBoot] = useState<Boot | null>(null);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      setBoot({ items: loadCoaching(), teachers: loadTeachers(), observasi: loadObservasi(), now: new Date() });
-    }, 0);
-    return () => window.clearTimeout(id);
+    let active = true;
+    // Observasi diambil dari Supabase; coaching & daftar guru masih dari browser.
+    listObservasiCloud()
+      .catch(() => [])
+      .then((observasi) => {
+        if (!active) return;
+        setBoot({ items: loadCoaching(), teachers: loadTeachers(), observasi, now: new Date() });
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!boot) {

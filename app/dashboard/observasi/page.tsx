@@ -37,14 +37,18 @@ import {
   hitungSkor,
   inisial,
   jumlahTerjawab,
-  loadObservasi,
-  saveObservasi,
   stempelWaktu,
   terapkanSkorGuru,
   type Jawaban,
   type Observasi,
   type StatusObs,
 } from "../../lib/observasi-data";
+import {
+  importLocalObservasi,
+  listObservasiCloud,
+  removeObservasiCloud,
+  simpanObservasiCloud,
+} from "../../lib/observasi-supabase";
 import "../dashboard-home.css";
 import "./observasi.css";
 
@@ -61,49 +65,99 @@ export default function ObservasiPage() {
   const [items, setItems] = useState<Observasi[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [notice, setNotice] = useState("");
   const [view, setView] = useState<View>({ name: "list" });
   const [prefill, setPrefill] = useState<Prefill | undefined>(undefined);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      setItems(loadObservasi());
-      setTeachers(loadTeachers());
-      // Bila dibuka dengan ?jadwal=<id> (dari Dashboard), langsung isikan form.
-      const jadwalId = new URLSearchParams(window.location.search).get("jadwal");
-      if (jadwalId) {
-        const sup = getSupervisions().find((s) => s.id === jadwalId);
-        if (sup) {
-          setPrefill({
-            teacherId: sup.teacherId,
-            mapel: sup.mapel,
-            kelas: sup.kelas,
-            date: toDateKey(sup.date),
-          });
-          setView({ name: "form" });
+    let active = true;
+    const t = window.setTimeout(() => setTeachers(loadTeachers()), 0);
+
+    (async () => {
+      try {
+        const list = await listObservasiCloud();
+        if (active) {
+          setItems(list);
+          setLoadError("");
         }
+        // Pindahkan observasi lama (localStorage) ke Supabase, sekali jalan.
+        try {
+          const { imported, failed } = await importLocalObservasi(list, (id) =>
+            loadTeachers().find((x) => x.id === id)?.name,
+          );
+          if (active && imported > 0) {
+            setItems(await listObservasiCloud());
+            setNotice(`${imported} observasi lama dipindahkan ke Supabase.`);
+          } else if (active && failed > 0) {
+            setNotice("Observasi lama di browser belum bisa dipindahkan. Akan dicoba lagi nanti.");
+          }
+        } catch {
+          /* impor gagal: data lama tetap aman di browser */
+        }
+      } catch (e) {
+        if (active) setLoadError(e instanceof Error ? e.message : "Gagal memuat observasi.");
+      } finally {
+        if (active) setReady(true);
       }
-      setReady(true);
+    })();
+
+    // Bila dibuka dengan ?jadwal=<id> (dari Dashboard), langsung isikan form.
+    // Ditunda sejenak agar aman dari "setState saat prerender" di Next.js.
+    const t2 = window.setTimeout(() => {
+      const jadwalId = new URLSearchParams(window.location.search).get("jadwal");
+      if (!jadwalId) return;
+      const sup = getSupervisions().find((s) => s.id === jadwalId);
+      if (sup) {
+        setPrefill({
+          teacherId: sup.teacherId,
+          mapel: sup.mapel,
+          kelas: sup.kelas,
+          date: toDateKey(sup.date),
+        });
+        setView({ name: "form" });
+      }
     }, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      active = false;
+      window.clearTimeout(t);
+      window.clearTimeout(t2);
+    };
   }, []);
 
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(""), 4500);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
   const nameMap = useMemo(() => new Map(teachers.map((t) => [t.id, t.name])), [teachers]);
-  const nameOf = (id: string) => nameMap.get(id) ?? "-";
+  // Nama guru dari baris observasi lebih dulu dipakai; id hanya cadangan.
+  // Ini penting: observasi yang dibuat di perangkat lain tidak punya id guru lokal.
+  const nameOf = (o: Observasi) => o.teacherName?.trim() || nameMap.get(o.teacherId) || "-";
 
-  function commit(next: Observasi[]) {
-    setItems(next);
-    saveObservasi(next);
-  }
-
-  function upsert(o: Observasi) {
-    const ada = items.some((x) => x.id === o.id);
-    commit(ada ? items.map((x) => (x.id === o.id ? o : x)) : [o, ...items]);
+  async function upsert(o: Observasi) {
+    const nama = nameOf(o).trim();
+    if (!nama || nama === "-") {
+      throw new Error("Nama guru belum ditemukan. Pilih guru yang sudah terdaftar di Data Guru.");
+    }
+    await simpanObservasiCloud({ ...o, teacherName: nama }, nama);
+    setItems(await listObservasiCloud());
     if (o.status === "selesai") terapkanSkorGuru(o.teacherId, hitungSkor(o));
   }
 
-  function remove(id: string) {
-    commit(items.filter((x) => x.id !== id));
+  async function remove(id: string) {
+    try {
+      await removeObservasiCloud(id);
+      setItems(await listObservasiCloud());
+      setNotice("Observasi dihapus.");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Gagal menghapus observasi.");
+    }
   }
+
+  // Pemberitahuan & pesan gagal tampil di atas daftar
+  const banner = notice || loadError;
 
   if (!ready || !boleh) {
     return (
@@ -121,8 +175,9 @@ export default function ObservasiPage() {
         prefill={prefill}
         teachers={teachers}
         onCancel={() => setView(initial ? { name: "detail", id: initial.id } : { name: "list" })}
-        onSave={(o) => {
-          upsert(o);
+        // Menyimpan ke Supabase; galat ditangkap FormView dan tampil sebagai pesan.
+        onSave={async (o) => {
+          await upsert(o);
           setView({ name: "detail", id: o.id });
         }}
       />
@@ -135,7 +190,7 @@ export default function ObservasiPage() {
       return (
         <DetailView
           o={o}
-          guru={nameOf(o.teacherId)}
+          guru={nameOf(o)}
           onBack={() => setView({ name: "list" })}
           onEdit={() => setView({ name: "form", id: o.id })}
           onUpdate={upsert}
@@ -148,6 +203,7 @@ export default function ObservasiPage() {
     <ListView
       items={items}
       nameOf={nameOf}
+      banner={banner}
       onNew={() => setView({ name: "form" })}
       onOpen={(id) => setView({ name: "detail", id })}
       onDelete={remove}
@@ -162,12 +218,15 @@ const PER_HALAMAN = 5;
 function ListView({
   items,
   nameOf,
+  banner,
   onNew,
   onOpen,
   onDelete,
 }: {
   items: Observasi[];
-  nameOf: (id: string) => string;
+  nameOf: (o: Observasi) => string;
+  // Pemberitahuan (mis. hasil impor) atau pesan gagal dari induknya.
+  banner?: string;
   onNew: () => void;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
@@ -193,7 +252,7 @@ function ListView({
         if (periode !== "semua" && !o.date.startsWith(periode)) return false;
         if (!ql) return true;
         const tgl = formatTanggalPendek(fromDateKey(o.date)).toLowerCase();
-        return [nameOf(o.teacherId), o.mapel, o.kelas, tgl].some((v) => v.toLowerCase().includes(ql));
+        return [nameOf(o), o.mapel, o.kelas, tgl].some((v) => v.toLowerCase().includes(ql));
       })
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [items, q, periode, status, nameOf]);
@@ -213,6 +272,12 @@ function ListView({
           <Plus size={18} aria-hidden="true" /> Buat Observasi
         </button>
       </div>
+
+      {banner && (
+        <p className="dg-error" role="status">
+          {banner}
+        </p>
+      )}
 
       <div className="dbd-stats">
         <div className="dbd-stat tone-blue">
@@ -322,7 +387,7 @@ function ListView({
               ) : (
                 rows.map((o, i) => {
                   const meta = STATUS_OBS[o.status];
-                  const nama = nameOf(o.teacherId);
+                  const nama = nameOf(o);
                   return (
                     <tr key={o.id}>
                       <td>{(hal - 1) * PER_HALAMAN + i + 1}</td>
@@ -438,7 +503,8 @@ function FormView({
   prefill?: Prefill;
   teachers: Teacher[];
   onCancel: () => void;
-  onSave: (o: Observasi) => void;
+  // Bisa async: penyimpanan ke Supabase. Bila gagal, galatnya ditangkap di sini.
+  onSave: (o: Observasi) => void | Promise<void>;
 }) {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
@@ -482,7 +548,7 @@ function FormView({
     setStep((s) => Math.min(4, s + 1));
   }
 
-  function simpan(status: StatusObs) {
+  async function simpan(status: StatusObs) {
     if (status !== "proses" && terjawab < SEMUA_BUTIR.length) {
       setError(`Masih ada ${SEMUA_BUTIR.length - terjawab} butir yang belum dijawab Ya/Tidak.`);
       return;
@@ -493,21 +559,26 @@ function FormView({
         : initial
           ? "Draft diperbarui"
           : "Observasi dibuat sebagai draft";
-    onSave({
-      id: initial?.id ?? `o-${Date.now()}`,
-      teacherId,
-      date,
-      mapel: mapel.trim(),
-      kelas: kelas.trim(),
-      pokok: pokok.trim(),
-      observer: observer.trim(),
-      status,
-      jawaban,
-      catatan: catatan.trim(),
-      rekomendasi: rekomendasi.trim(),
-      diterbitkan: initial?.diterbitkan,
-      riwayat: [...(initial?.riwayat ?? []), { at: stempelWaktu(), teks: riwayatBaru }],
-    });
+    setError("");
+    try {
+      await onSave({
+        id: initial?.id ?? `o-${Date.now()}`,
+        teacherId,
+        date,
+        mapel: mapel.trim(),
+        kelas: kelas.trim(),
+        pokok: pokok.trim(),
+        observer: observer.trim(),
+        status,
+        jawaban,
+        catatan: catatan.trim(),
+        rekomendasi: rekomendasi.trim(),
+        diterbitkan: initial?.diterbitkan,
+        riwayat: [...(initial?.riwayat ?? []), { at: stempelWaktu(), teks: riwayatBaru }],
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menyimpan observasi. Coba lagi.");
+    }
   }
 
   return (
@@ -778,15 +849,26 @@ function DetailView({
   guru: string;
   onBack: () => void;
   onEdit: () => void;
-  onUpdate: (o: Observasi) => void;
+  // Bisa async (penyimpanan ke Supabase); galat ditangkap di dalam.
+  onUpdate: (o: Observasi) => void | Promise<void>;
 }) {
   const [tab, setTab] = useState<(typeof TAB)[number]>("Kegiatan Pembelajaran");
   const [terbuka, setTerbuka] = useState<string[]>(["A"]);
+  const [aksiError, setAksiError] = useState("");
   const meta = STATUS_OBS[o.status];
   const tanggal = fromDateKey(o.date);
 
+  async function jalankan(next: Observasi) {
+    setAksiError("");
+    try {
+      await onUpdate(next);
+    } catch (e) {
+      setAksiError(e instanceof Error ? e.message : "Gagal memperbarui observasi.");
+    }
+  }
+
   function selesaikan() {
-    onUpdate({
+    void jalankan({
       ...o,
       status: "selesai",
       riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Review disetujui, skor ${hitungSkor(o)}` }],
@@ -795,7 +877,7 @@ function DetailView({
 
   // Terbitkan hasil supaya guru bisa melihatnya di menu "Hasil Observasi Supervisi".
   function terbitkan() {
-    onUpdate({
+    void jalankan({
       ...o,
       diterbitkan: true,
       riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Hasil diterbitkan untuk guru (skor ${hitungSkor(o)})` }],
@@ -803,7 +885,7 @@ function DetailView({
   }
 
   function tarikTerbit() {
-    onUpdate({
+    void jalankan({
       ...o,
       diterbitkan: false,
       riwayat: [...o.riwayat, { at: stempelWaktu(), teks: "Penerbitan hasil dibatalkan" }],
@@ -860,6 +942,12 @@ function DetailView({
           </button>
         </div>
       </div>
+
+      {aksiError && (
+        <p className="dg-error" role="alert">
+          {aksiError}
+        </p>
+      )}
 
       <section className="ob-profile">
         <span className="ob-avatar is-lg" aria-hidden="true">

@@ -38,7 +38,8 @@ import {
 } from "../../lib/dashboard-data";
 import { type RppDoc, type RppStatus } from "../../lib/rpp-store";
 import { listRpp } from "../../lib/rpp-supabase";
-import { loadObservasi, stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { listObservasiCloud } from "../../lib/observasi-supabase";
 import { buatPayload, loadCoaching, type AiFeedback, type Coaching } from "../../lib/coaching-data";
 import {
   SAMPLE_RECORDS,
@@ -112,13 +113,20 @@ export default function AiFeedbackPage() {
     const id = window.setTimeout(() => {
       setTeachers(loadTeachers());
       setSups(getSupervisions());
-      setObservasi(loadObservasi());
       setCoaching(loadCoaching());
       setRecords(loadFeedback());
-      // Daftar dokumen RPP diambil dari Supabase agar sama dengan halaman RPP
-      listRpp()
-        .then((list) => setDocs(list))
-        .catch(() => setDocs([]))
+      // Dokumen RPP & observasi diambil dari Supabase agar sama dengan
+      // halaman RPP dan Observasi. Keduanya menunggu bersama sebelum siap.
+      Promise.all([listRpp(), listObservasiCloud()])
+        .then(([docs, obs]) => {
+          setDocs(docs);
+          setObservasi(obs);
+        })
+        .catch((e) => {
+          setDocs([]);
+          setObservasi([]);
+          setNotice(e instanceof Error ? e.message : "Gagal memuat data observasi & RPP.");
+        })
         .finally(() => setReady(true));
     }, 0);
     getSession().then((s) => setUser(s));

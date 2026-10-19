@@ -20,7 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { fromDateKey, formatTanggalPendek, loadTeachers, toDateKey, type Teacher } from "../../lib/dashboard-data";
-import { hitungSkor, inisial, loadObservasi, type Observasi } from "../../lib/observasi-data";
+import { hitungSkor, inisial, type Observasi } from "../../lib/observasi-data";
+import { listObservasiCloud } from "../../lib/observasi-supabase";
 import { STATUS_COACHING, loadCoaching, type Coaching } from "../../lib/coaching-data";
 import { STATUS_RTL, loadRtl, progres, statusRtl, type Rtl, type StatusRtl } from "../../lib/rtl-data";
 import { useRoleGuard } from "../../lib/use-role-guard";
@@ -149,16 +150,23 @@ export default function LaporanPage() {
   const [boot, setBoot] = useState<Boot | null>(null);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      setBoot({
-        teachers: loadTeachers(),
-        observasi: loadObservasi(),
-        coaching: loadCoaching(),
-        rtl: loadRtl(),
-        now: new Date(),
+    let active = true;
+    // Observasi diambil dari Supabase; data lain masih dari browser.
+    listObservasiCloud()
+      .catch(() => [])
+      .then((observasi) => {
+        if (!active) return;
+        setBoot({
+          teachers: loadTeachers(),
+          observasi,
+          coaching: loadCoaching(),
+          rtl: loadRtl(),
+          now: new Date(),
+        });
       });
-    }, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!boot || !boleh) {

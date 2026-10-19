@@ -11,6 +11,9 @@ export type Jawaban = { ya: boolean | null; catatan: string };
 export type Observasi = {
   id: string;
   teacherId: string;
+  // Nama guru saat observasi dibuat. Inilah yang menautkan observasi ke akun
+  // guru di Supabase (id akun guru tidak selalu sama dengan teacherId).
+  teacherName?: string;
   date: string; // "YYYY-MM-DD"
   mapel: string;
   kelas: string;
