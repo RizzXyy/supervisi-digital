@@ -45,6 +45,7 @@ import {
 } from "../../lib/observasi-data";
 import {
   importLocalObservasi,
+  listAkunGuru,
   listObservasiCloud,
   removeObservasiCloud,
   simpanObservasiCloud,
@@ -64,6 +65,9 @@ export default function ObservasiPage() {
   const boleh = useRoleGuard(ALLOW);
   const [items, setItems] = useState<Observasi[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  // Akun guru sungguhan di Supabase (tabel profiles). Nilai inilah yang menjadi
+  // guru_id — identitas guru tidak pernah ditebak dari nama.
+  const [akunGuru, setAkunGuru] = useState<{ id: string; name: string }[]>([]);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
@@ -96,6 +100,15 @@ export default function ObservasiPage() {
           // Impor gagal total: data lama tetap aman di browser. Galat aslinya
           // dicetak ke console supaya penyebabnya tidak diam-diam ditelan.
           console.error("[observasi] impor lokal gagal total", e);
+        }
+        // Daftar akun guru untuk pilihan "Nama Guru" di form. Bila gagal, form
+        // tetap terbuka tapi pilihan kosong — galat dicetak ke console.
+        try {
+          const akun = await listAkunGuru();
+          if (active) setAkunGuru(akun);
+        } catch (e) {
+          console.error("[observasi] daftar akun guru gagal dimuat", e);
+          if (active) setNotice("Daftar akun guru gagal dimuat. Muat ulang halaman untuk mencoba lagi.");
         }
       } catch (e) {
         if (active) setLoadError(e instanceof Error ? e.message : "Gagal memuat observasi.");
@@ -176,6 +189,7 @@ export default function ObservasiPage() {
         initial={initial}
         prefill={prefill}
         teachers={teachers}
+        akunGuru={akunGuru}
         onCancel={() => setView(initial ? { name: "detail", id: initial.id } : { name: "list" })}
         // Menyimpan ke Supabase; galat ditangkap FormView dan tampil sebagai pesan.
         onSave={async (o) => {
@@ -494,16 +508,33 @@ function ListView({
 
 const LANGKAH = ["Identitas & Data", "Instrumen Observasi", "Catatan & Rekomendasi", "Review"];
 
+// Bentuk nama seragam (sebelum koma, huruf kecil) — HANYA untuk mencocokkan
+// akun guru dengan Data Guru lokal guna prapilih mapel/kelas. Identitas guru
+// yang disimpan ke database tetap uuid akun, bukan hasil pencocokan ini.
+function normNama(teks?: string) {
+  return (teks ?? "").split(",")[0].trim().toLowerCase();
+}
+
+// Bila dua akun guru berbagi nama, tampilkan penanda pendek uuid supaya
+// kepala sekolah bisa membedakan pilihannya.
+function namaKembar(a: { id: string; name: string }, daftar: { id: string; name: string }[]) {
+  const kembar = daftar.some((x) => x.id !== a.id && normNama(x.name) === normNama(a.name));
+  return kembar ? `${a.name} (${a.id.slice(0, 8)})` : a.name;
+}
+
 function FormView({
   initial,
   prefill,
   teachers,
+  akunGuru,
   onCancel,
   onSave,
 }: {
   initial?: Observasi;
   prefill?: Prefill;
   teachers: Teacher[];
+  // Akun guru di Supabase (sumber pilihan "Nama Guru" dan guru_id).
+  akunGuru: { id: string; name: string }[];
   onCancel: () => void;
   // Bisa async: penyimpanan ke Supabase. Bila gagal, galatnya ditangkap di sini.
   onSave: (o: Observasi) => void | Promise<void>;
@@ -511,6 +542,19 @@ function FormView({
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [teacherId, setTeacherId] = useState(initial?.teacherId ?? prefill?.teacherId ?? "");
+  // uuid akun guru yang dipilih — inilah yang disimpan ke kolom guru_id.
+  // Awalnya dari baris yang diedit (uuid dari database); bila dibuka dari
+  // prefill jadwal, prapilih akun TUNGGAL yang namanya cocok. Bila tidak ada
+  // atau namanya kembar, dikosongkan: kepsek memilih sendiri, tanpa tebakan.
+  const [guruAkunId, setGuruAkunId] = useState(() => {
+    if (initial?.guruAkunId) return initial.guruAkunId;
+    const nama0 =
+      teachers.find((t) => t.id === (initial?.teacherId ?? prefill?.teacherId))?.name ??
+      initial?.teacherName ??
+      "";
+    const cocok = nama0 ? akunGuru.filter((a) => normNama(a.name) === normNama(nama0)) : [];
+    return cocok.length === 1 ? cocok[0].id : "";
+  });
   const [mapel, setMapel] = useState(initial?.mapel ?? prefill?.mapel ?? "");
   const [kelas, setKelas] = useState(initial?.kelas ?? prefill?.kelas ?? "");
   const [pokok, setPokok] = useState(initial?.pokok ?? "");
@@ -523,14 +567,20 @@ function FormView({
   const [openSection, setOpenSection] = useState<string | null>("A");
   const headRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  const sortedTeachers = useMemo(() => [...teachers].sort((a, b) => a.name.localeCompare(b.name)), [teachers]);
+  const sortedAkun = useMemo(() => [...akunGuru].sort((a, b) => a.name.localeCompare(b.name)), [akunGuru]);
+  // Nama akun terpilih — dipakai di langkah Review dan sebagai nama guru tersimpan.
+  const namaAkun = sortedAkun.find((a) => a.id === guruAkunId)?.name ?? "";
   const draft = { jawaban };
   const terjawab = jumlahTerjawab(draft);
   const skor = hitungSkor(draft);
 
-  function pilihGuru(id: string) {
-    const t = teachers.find((x) => x.id === id);
-    setTeacherId(id);
+  // Nilai dropdown = uuid akun guru. Data Guru lokal hanya dipakai untuk
+  // prapilih mapel/kelas dan pembaruan skor lokal — bukan untuk identitas.
+  function pilihAkun(id: string) {
+    setGuruAkunId(id);
+    const nama = akunGuru.find((a) => a.id === id)?.name ?? "";
+    const t = teachers.find((x) => normNama(x.name) === normNama(nama));
+    setTeacherId(t?.id ?? "");
     setMapel((prev) => prev || t?.mapel || "");
     setKelas((prev) => prev || t?.kelas || "");
   }
@@ -556,8 +606,8 @@ function FormView({
   }
 
   function lanjut() {
-    if (step === 1 && (!teacherId || !mapel.trim() || !kelas.trim() || !date || !observer.trim())) {
-      setError("Guru, mata pelajaran, kelas, tanggal, dan observer wajib diisi.");
+    if (step === 1 && (!guruAkunId || !mapel.trim() || !kelas.trim() || !date || !observer.trim())) {
+      setError("Guru (akun guru), mata pelajaran, kelas, tanggal, dan observer wajib diisi.");
       return;
     }
     setError("");
@@ -582,6 +632,10 @@ function FormView({
         // (kolom id tabel observasi bertipe uuid).
         id: initial?.id ?? crypto.randomUUID(),
         teacherId,
+        // Nama & uuid akun guru yang dipilih — inilah yang menjadi kolom
+        // teacher_name dan guru_id di database.
+        teacherName: namaAkun || initial?.teacherName || "",
+        guruAkunId,
         date,
         mapel: mapel.trim(),
         kelas: kelas.trim(),
@@ -635,11 +689,11 @@ function FormView({
               <div className="dg-row">
                 <label className="dg-field">
                   Nama Guru
-                  <select value={teacherId} onChange={(e) => pilihGuru(e.target.value)}>
+                  <select value={guruAkunId} onChange={(e) => pilihAkun(e.target.value)}>
                     <option value="">Pilih Guru</option>
-                    {sortedTeachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
+                    {sortedAkun.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {namaKembar(a, sortedAkun)}
                       </option>
                     ))}
                   </select>
@@ -654,6 +708,12 @@ function FormView({
                   />
                 </label>
               </div>
+              {teacherId && !guruAkunId && (
+                <p className="ob-hint">
+                  Guru ini belum punya akun, hasil observasi belum bisa dilihat guru. Pilih akunnya pada daftar
+                  &quot;Nama Guru&quot;; bila belum ada, buatkan akun guru terlebih dahulu.
+                </p>
+              )}
               <label className="dg-field">
                 Kelas / Semester
                 <input
@@ -788,7 +848,7 @@ function FormView({
             <dl className="dbd-detail">
               <div>
                 <dt>Guru</dt>
-                <dd>{teachers.find((t) => t.id === teacherId)?.name ?? "-"}</dd>
+                <dd>{(namaAkun || teachers.find((t) => t.id === teacherId)?.name) ?? "-"}</dd>
               </div>
               <div>
                 <dt>Mapel / Kelas</dt>

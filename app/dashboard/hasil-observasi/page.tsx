@@ -15,12 +15,6 @@ const ALLOW: Role[] = ["guru"];
 
 const TAB = ["Kegiatan Pembelajaran", "Catatan", "Rekomendasi"] as const;
 
-// Nama dibandingkan tanpa gelar, sama seperti kebijakan RLS di Supabase
-// ("Budi Santoso, S.Pd" dan "Budi Santoso" dianggap orang yang sama).
-function normNama(teks?: string) {
-  return (teks ?? "").split(",")[0].trim().toLowerCase();
-}
-
 export default function HasilObservasiPage() {
   const boleh = useRoleGuard(ALLOW);
   const [user, setUser] = useState<Session | null>(null);
@@ -33,8 +27,8 @@ export default function HasilObservasiPage() {
     let active = true;
     getSession().then((s) => active && setUser(s));
     // Data diambil dari Supabase. RLS di server sudah membatasi hanya hasil
-    // yang diterbitkan atas nama pemilik akun ini; saringan di bawah hanya
-    // jaring pengaman tambahan.
+    // diterbitkan atas akun login ini (guru_id = auth.uid()); saringan di
+    // bawah hanya jaring pengaman tambahan.
     listObservasiCloud()
       .then((list) => {
         if (!active) return;
@@ -51,12 +45,13 @@ export default function HasilObservasiPage() {
     };
   }, []);
 
-  // Guru hanya melihat hasil yang sudah diterbitkan kepala sekolah atas namanya.
+  // Guru hanya melihat hasil yang sudah diterbitkan atas akunnya sendiri.
+  // Pencocokan lewat uuid akun (guruAkunId = id login), BUKAN nama — nama bisa
+  // kembar antara akun kepala sekolah dan guru.
   const hasil = useMemo(() => {
-    const nama = normNama(user?.name);
-    if (!nama) return [];
+    if (!user) return [];
     return items
-      .filter((o) => o.diterbitkan && normNama(o.teacherName) === nama)
+      .filter((o) => o.diterbitkan && o.guruAkunId === user.id)
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [items, user]);
 
@@ -120,7 +115,7 @@ export default function HasilObservasiPage() {
                     <td>{o.mapel}</td>
                     <td>{o.kelas}</td>
                     <td>
-                      <strong>{hitungSkor(o)}</strong>
+                      <strong>{o.skorTersimpan ?? hitungSkor(o)}</strong>
                     </td>
                     <td>{o.observer}</td>
                     <td className="dg-aksi">
@@ -187,7 +182,7 @@ function HasilDetail({ o, guru, onBack }: { o: Observasi; guru: string; onBack: 
         </div>
         <div className="ob-skor">
           <small>Skor</small>
-          <strong>{hitungSkor(o)}</strong>
+          <strong>{o.skorTersimpan ?? hitungSkor(o)}</strong>
         </div>
       </section>
 

@@ -9,12 +9,15 @@
 // PEMETAAN KOLOM (tipe aplikasi Observasi -> kolom public.observasi):
 //   id            -> id           (uuid; id lama "o-..." -> uuid idStabil)
 //   teacherName   -> teacher_name (teks, untuk tampilan daftar)
-//   teacherId     -> guru_id       (uuid: dicari dari tabel profiles lewat
-//                                   nama guru ternormalisasi; guru belum punya
-//                                   akun -> null). Saat baris DIBACA, nama itu
-//                                   dipakai lagi untuk mengembalikan id guru
-//                                   lokal ("t1") supaya filter di laporan,
-//                                   micro-coaching, dan ai-feedback tetap cocok.
+//   teacherId     -> (tidak disimpan ke kolom mana pun) id guru lokal "t1",
+//                                   hanya untuk form & filter lokal. Saat baris
+//                                   DIBACA, dipulihkan dari nama (kosmetik saja).
+//   guruAkunId    -> guru_id (uuid): uuid akun guru di Supabase, dipilih
+//                                   EKSPLISIT oleh kepala sekolah dari daftar
+//                                   akun guru (listAkunGuru). TIDAK PERNAH
+//                                   ditebak dari nama — nama bisa kembar antara
+//                                   akun kepsek dan guru. Guru belum punya
+//                                   akun -> null + peringatan di form.
 //   date          -> tanggal
 //   mapel         -> mapel         kelas -> kelas
 //   pokok         -> pokok         observer -> observer
@@ -97,20 +100,20 @@ function idStabil(appId: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-// Daftar akun guru dari tabel profiles: nama ternormalisasi -> uuid akunnya.
-// Dibaca oleh kepala sekolah yang menyimpan observasi (kebijakan RLS profiles
-// mengizinkan kepala sekolah membaca seluruh profil). Bila gagal dibaca,
-// fungsi ini melempar galat: lebih baik simpan ditolak daripada tersimpan
-// tanpa guru_id sehingga guru tidak bisa melihat observasinya.
-async function petaGuru(): Promise<Map<string, string>> {
-  const { data, error } = await supabase.from("profiles").select("id, name");
+// Daftar akun guru sungguhan dari tabel profiles. Inilah sumber pilihan
+// "Nama Guru" di form: nilai yang dipilih berupa uuid akun, jadi guru_id tidak
+// pernah ditebak dari nama (nama bisa kembar antara akun kepsek dan guru).
+// Kepala sekolah boleh membaca seluruh profiles (kebijakan RLS
+// profiles_select_app); akun sendiri dan akun kepala sekolah dikeluarkan.
+export async function listAkunGuru(): Promise<{ id: string; name: string }[]> {
+  const { data: akun } = await supabase.auth.getUser();
+  const sayaId = akun.user?.id ?? "";
+  const { data, error } = await supabase.from("profiles").select("id, name, role");
   if (error) throw new Error(pesanDb(error.message));
-  const peta = new Map<string, string>();
-  for (const p of (data ?? []) as { id: string; name?: string | null }[]) {
-    const kunci = normNama(p.name);
-    if (kunci && !peta.has(kunci)) peta.set(kunci, p.id);
-  }
-  return peta;
+  return ((data ?? []) as { id: string; name?: string | null; role?: string | null }[])
+    .filter((p) => p.id !== sayaId && p.role !== "kepala_sekolah")
+    .map((p) => ({ id: p.id, name: (p.name ?? "").trim() || "Guru" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Kebalikannya, dari Data Guru: nama ternormalisasi -> id guru lokal ("t1", ...).
@@ -126,12 +129,15 @@ function petaIdLokal(): Map<string, string> {
 }
 
 // Baris database -> tipe aplikasi.
-// idLokal: nama guru ternormalisasi -> id guru lokal.
+// idLokal: nama guru ternormalisasi -> id guru lokal (HANYA kosmetik untuk
+// form/filter lokal; identitas guru yang sah tetap guruAkunId/uuid akun).
 function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
   return {
     id: r.id,
     teacherId: idLokal.get(normNama(r.teacher_name)) ?? "",
     teacherName: r.teacher_name ?? "",
+    guruAkunId: r.guru_id ?? undefined,
+    skorTersimpan: r.skor_akhir ?? undefined,
     date: r.tanggal ?? "",
     mapel: r.mapel ?? "",
     kelas: r.kelas ?? "",
@@ -147,15 +153,15 @@ function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
 }
 
 // Tipe aplikasi -> baris database.
-// guru = hasil petaGuru() (nama ternormalisasi -> uuid akun). Guru yang belum
-// punya akun membuat guru_id null — id teks aplikasi TIDAK pernah ditulis ke
-// kolom bertipe uuid.
-function keRow(o: Observasi, teacherName: string, ownerId: string, guru: Map<string, string>) {
+// guru_id diambil dari o.guruAkunId: uuid akun yang dipilih eksplisit di form.
+// Guru belum punya akun -> null; id teks aplikasi TIDAK PERNAH ditulis ke
+// kolom bertipe uuid, dan nama TIDAK dipakai untuk menebak identitas guru.
+function keRow(o: Observasi, teacherName: string, ownerId: string) {
   const nama = teacherName.trim();
   return {
     id: idStabil(o.id),
     teacher_name: nama,
-    guru_id: guru.get(normNama(nama)) ?? null,
+    guru_id: o.guruAkunId ?? null,
     supervisor_id: ownerId,
     tanggal: o.date || null,
     mapel: o.mapel,
@@ -216,8 +222,7 @@ export async function listObservasiCloud(): Promise<Observasi[]> {
 // mengisi guru_id — kolom yang dirujuk kebijakan RLS saat guru membaca.
 export async function simpanObservasiCloud(o: Observasi, teacherName: string) {
   const owner = await currentUserId();
-  const guru = await petaGuru();
-  const row = keRow(o, teacherName, owner, guru);
+  const row = keRow(o, teacherName, owner);
   const { error } = await supabase.from("observasi").upsert(row);
   if (error) {
     // Penyebab asli (code, details, hint) dicetak ke console; pesan yang
@@ -260,17 +265,12 @@ export async function importLocalObservasi(
   const sudahAdaKunci = new Set(cloud.map((o) => `${o.date}|${normNama(o.teacherName)}`));
 
   let owner: string;
-  let guru: Map<string, string>;
   try {
     owner = await currentUserId();
-    // Daftar akun guru dipakai untuk mengisi guru_id. Bila gagal dibaca,
-    // impor dibatalkan (data lokal tetap aman) supaya tidak ada baris yang
-    // tersimpan tanpa kaitan ke akun guru.
-    guru = await petaGuru();
   } catch (e) {
-    // Tanpa sesi/daftar profil, impor dibatalkan tanpa menyentuh data lokal.
+    // Tanpa sesi, impor dibatalkan tanpa menyentuh data lokal.
     // Tetap dicetak supaya penyebab banner "belum bisa dipindahkan" terlihat.
-    console.error("[observasi] impor lokal dibatalkan: sesi atau daftar profil tidak bisa dibaca", e);
+    console.error("[observasi] impor lokal dibatalkan: sesi tidak ditemukan", e);
     return { imported: 0, failed: local.length };
   }
 
@@ -288,7 +288,10 @@ export async function importLocalObservasi(
       const teacherName = (o.teacherName ?? namaGuruDariId(o.teacherId) ?? "").trim();
       // upsert (bukan insert) dengan id deterministik dari keRow(): aman diulang —
       // baris yang sama tidak akan terduplikasi bila impor berjalan lagi nanti.
-      const { error } = await supabase.from("observasi").upsert(keRow(o, teacherName, owner, guru));
+      // guru_id sengaja null: data lama tidak punya kaitan uuid yang pasti, dan
+      // menebak dari nama bisa salah orang (nama bisa kembar). Baris hasil impor
+      // tetap terlihat bagi kepsek; guru_id bisa diisi lewat SQL bila perlu.
+      const { error } = await supabase.from("observasi").upsert(keRow(o, teacherName, owner));
       if (error) {
         // Simpan detail asli Supabase pada galat supaya catch di bawah bisa
         // mencetaknya; pesan yang dilihat pengguna tetap versi ramah.

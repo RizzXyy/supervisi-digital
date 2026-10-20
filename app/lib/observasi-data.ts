@@ -12,9 +12,15 @@ export type Jawaban = { ya: boolean | null; catatan: string };
 export type Observasi = {
   id: string;
   teacherId: string;
-  // Nama guru saat observasi dibuat. Inilah yang menautkan observasi ke akun
-  // guru di Supabase (id akun guru tidak selalu sama dengan teacherId).
+  // Nama guru saat observasi dibuat. Dipakai untuk tampilan daftar.
   teacherName?: string;
+  // uuid akun guru di Supabase (kolom guru_id). Dipilih eksplisit oleh kepsek
+  // dari daftar akun; inilah yang dirujuk RLS saat guru membaca hasilnya.
+  // Kosong/null hanya bila guru memang belum punya akun.
+  guruAkunId?: string | null;
+  // Skor tersimpan di database (kolom skor_akhir). Bila ada, dipakai langsung;
+  // bila tidak, tampilan menghitung ulang dari jawaban.
+  skorTersimpan?: number;
   date: string; // "YYYY-MM-DD"
   mapel: string;
   kelas: string;
