@@ -14,7 +14,8 @@ type Row = {
   teacher_id: string | null;
   teacher_name: string;
   owner_id: string;
-  date: string;
+  tanggal?: string;
+  date?: string;
   mapel: string;
   kelas: string;
   pokok: string;
@@ -28,11 +29,12 @@ type Row = {
 };
 
 function toObs(r: Row): Observasi {
+  const tgl = (r as any).tanggal ?? (r as any).date ?? (r as any).tgl ?? (r as any).tanggal_observasi ?? "";
   return {
     id: r.id,
     teacherId: r.teacher_id ?? "",
     teacherName: r.teacher_name,
-    date: r.date,
+    date: tgl,
     mapel: r.mapel,
     kelas: r.kelas,
     pokok: r.pokok,
@@ -64,7 +66,8 @@ export async function listObservasiCloud(): Promise<Observasi[]> {
   const { data, error } = await supabase
     .from("observasi")
     .select("*")
-    .order("date", { ascending: false })
+    .order("tanggal", { ascending: false, nullsLast: true })
+    .order("date", { ascending: false, nullsLast: true })
     .order("created_at", { ascending: false });
   if (error) throw new Error(pesanDb(error.message));
   return (data as unknown as Row[]).map(toObs);
@@ -80,6 +83,7 @@ export async function simpanObservasiCloud(o: Observasi, teacherName: string) {
     teacher_id: o.teacherId || null,
     teacher_name: teacherName.trim(),
     owner_id: owner,
+    tanggal: o.date,
     date: o.date,
     mapel: o.mapel,
     kelas: o.kelas,
@@ -148,6 +152,7 @@ export async function importLocalObservasi(
         teacher_id: o.teacherId || null,
         teacher_name: teacherName,
         owner_id: owner,
+        tanggal: o.date,
         date: o.date,
         mapel: o.mapel,
         kelas: o.kelas,
