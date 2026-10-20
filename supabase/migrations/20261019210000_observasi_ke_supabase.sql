@@ -62,6 +62,35 @@ revoke execute on function public.nama_saya() from public, anon;
 grant execute on function public.nama_saya() to authenticated, service_role;
 
 -- ============ 2. Tabel ============
+-- AWAS: "if not exists" DIAM-DIAM melewati pembuatan bila sudah ada tabel
+-- bernama sama dengan bentuk lama (mis. hasil draft di SQL editor yang
+-- kolomnya "tanggal", "guru_id", tanpa "date"). Akibatnya migrasi gagal di
+-- langkah create index (teacher_name tidak ada) lalu ikut ter-rollback,
+-- sehingga grant + RLS tidak pernah terpasang. Blok berikut memaksa tabel
+-- sesuai definisi di bawah: bila skema lama dan KOSONG, buang dulu; bila
+-- berisi data, hentikan migrasi supaya data tidak hilang diam-diam.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'observasi'
+      and column_name = 'date'
+  ) then
+    return; -- sudah skema baru, biarkan
+  end if;
+
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'observasi'
+  ) then
+    if (select count(*) from public.observasi) > 0 then
+      raise exception 'Tabel public.observasi masih skema lama (tanpa kolom "date") tetapi berisi data. Periksa manual sebelum diubah.';
+    end if;
+    drop table public.observasi;
+    raise notice 'Tabel public.observasi skema lama (kosong) dibuang dan dibuat ulang.';
+  end if;
+end $$;
+
 create table if not exists public.observasi (
   id          text primary key,
   -- id guru di aplikasi; hanya untuk keperluan tampilan & skor lokal
