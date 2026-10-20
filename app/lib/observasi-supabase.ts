@@ -12,12 +12,13 @@
 // fungsi itu.
 //
 // Perbedaan penting id <-> uuid:
-//   - Aplikasi memakai id buatan sendiri ("o-1729...") dan id guru lokal ("t1").
-//     Keduanya bukan uuid, sedangkan kolom id/guru_id bertipe uuid.
-//   - Solusinya: id aplikasi disimpan apa adanya di kolom teks app_id /
-//     app_teacher_id (lihat migrasi), dan kolom uuid diisi HANYA bila nilainya
-//     memang uuid valid. Untuk id baris, dipakai uuid deterministik dari id
-//     aplikasi supaya upsert selalu mengganti baris yang sama (tidak duplikat).
+//   - Kolom id bertipe uuid. Observasi baru kini dibuat dengan uuid
+//     (crypto.randomUUID), jadi id aplikasi = id baris di database.
+//   - Data lama di localStorage masih berbentuk "o-1729...". Untuk baris itu
+//     dipakai uuid DETERMINISTIK dari id lamanya (idStabil) supaya upsert
+//     selalu mengganti baris yang sama (tidak duplikat).
+//   - Id guru lokal ("t1") tetap bukan uuid, jadi disimpan di app_teacher_id;
+//     kolom guru_id hanya diisi bila nilainya memang uuid valid.
 
 import { supabase } from "./supabase";
 import { hitungSkor, loadObservasi, type Jawaban, type Observasi, type StatusObs } from "./observasi-data";
@@ -25,7 +26,6 @@ import { hitungSkor, loadObservasi, type Jawaban, type Observasi, type StatusObs
 // Bentuk baris tabel public.observasi (sesuai struktur di database).
 type Row = {
   id: string;
-  app_id: string | null;
   guru_id: string | null;
   app_teacher_id: string | null;
   teacher_name: string | null;
@@ -82,7 +82,7 @@ function idStabil(appId: string): string {
 // Baris database -> tipe aplikasi.
 function keObservasi(r: Row): Observasi {
   return {
-    id: r.app_id || r.id,
+    id: r.id,
     teacherId: r.app_teacher_id || r.guru_id || "",
     teacherName: r.teacher_name ?? "",
     date: r.tanggal ?? "",
@@ -103,7 +103,6 @@ function keObservasi(r: Row): Observasi {
 function keRow(o: Observasi, teacherName: string, ownerId: string) {
   return {
     id: idStabil(o.id),
-    app_id: o.id,
     guru_id: uuidOrNull(o.teacherId),
     app_teacher_id: o.teacherId || null,
     teacher_name: teacherName.trim(),
@@ -185,7 +184,9 @@ export async function importLocalObservasi(
   const local = loadObservasi();
   if (!local.length) return { imported: 0, failed: 0 };
 
-  // Pencocokan ganda: id observasi, atau (tanggal + nama guru) untuk jaga-jaga
+  // Pencocokan ganda: id observasi (id lama "o-..." dinormalkan ke uuid
+  // deterministik yang sama dengan id baris di database), atau
+  // (tanggal + nama guru) untuk jaga-jaga
   const sudahAda = new Set(cloud.map((o) => o.id));
   const sudahAdaKunci = new Set(cloud.map((o) => `${o.date}|${normNama(o.teacherName)}`));
 
@@ -205,7 +206,8 @@ export async function importLocalObservasi(
 
   for (const o of local) {
     const kunci = `${o.date}|${normNama(o.teacherName ?? namaGuruDariId(o.teacherId))}`;
-    if (sudahAda.has(o.id) || sudahAdaKunci.has(kunci)) {
+    // idStabil: id lama "o-..." -> uuid yang sama persis dengan id baris DB.
+    if (sudahAda.has(idStabil(o.id)) || sudahAdaKunci.has(kunci)) {
       continue; // sudah ada di Supabase
     }
     try {
@@ -222,7 +224,7 @@ export async function importLocalObservasi(
         galat.supabase = { code: error.code, details: error.details, hint: error.hint };
         throw galat;
       }
-      sudahAda.add(o.id);
+      sudahAda.add(idStabil(o.id));
       sudahAdaKunci.add(kunci);
       imported += 1;
     } catch (e) {

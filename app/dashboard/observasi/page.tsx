@@ -578,7 +578,9 @@ function FormView({
     setError("");
     try {
       await onSave({
-        id: initial?.id ?? `o-${Date.now()}`,
+        // Id baru berupa uuid supaya sama dengan id baris di database
+        // (kolom id tabel observasi bertipe uuid).
+        id: initial?.id ?? crypto.randomUUID(),
         teacherId,
         date,
         mapel: mapel.trim(),
