@@ -53,6 +53,11 @@ alter table public.observasi
 -- Cepatkan pencarian baris berdasarkan id aplikasi saat impor lokal.
 create index if not exists observasi_app_id_idx on public.observasi (app_id);
 
+-- Minta PostgREST memuat ulang schema cache segera. Tanpa ini, kolom baru
+-- bisa tetap "tak terlihat" oleh API sampai pemuatan ulang otomatis
+-- (error khas: "Could not find the '...' column ... in the schema cache").
+notify pgrst, 'reload schema';
+
 -- Verifikasi cepat (setelah migrasi):
 --   select column_name from information_schema.columns
 --     where table_schema='public' and table_name='observasi'
