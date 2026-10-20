@@ -92,8 +92,10 @@ export default function ObservasiPage() {
           } else if (active && failed > 0) {
             setNotice("Observasi lama di browser belum bisa dipindahkan. Akan dicoba lagi nanti.");
           }
-        } catch {
-          /* impor gagal: data lama tetap aman di browser */
+        } catch (e) {
+          // Impor gagal total: data lama tetap aman di browser. Galat aslinya
+          // dicetak ke console supaya penyebabnya tidak diam-diam ditelan.
+          console.error("[observasi] impor lokal gagal total", e);
         }
       } catch (e) {
         if (active) setLoadError(e instanceof Error ? e.message : "Gagal memuat observasi.");

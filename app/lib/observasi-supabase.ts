@@ -192,7 +192,10 @@ export async function importLocalObservasi(
   let owner: string;
   try {
     owner = await currentUserId();
-  } catch {
+  } catch (e) {
+    // Tanpa sesi, impor dibatalkan tanpa menyentuh data lokal.
+    // Tetap dicetak supaya penyebab banner "belum bisa dipindahkan" terlihat.
+    console.error("[observasi] impor lokal dibatalkan: sesi tidak ditemukan", e);
     return { imported: 0, failed: local.length };
   }
 
@@ -207,12 +210,30 @@ export async function importLocalObservasi(
     }
     try {
       const teacherName = (o.teacherName ?? namaGuruDariId(o.teacherId) ?? "").trim();
-      const { error } = await supabase.from("observasi").insert(keRow(o, teacherName, owner));
-      if (error) throw new Error(pesanDb(error.message));
+      // upsert (bukan insert) dengan id deterministik dari keRow(): aman diulang —
+      // baris yang sama tidak akan terduplikasi bila impor berjalan lagi nanti.
+      const { error } = await supabase.from("observasi").upsert(keRow(o, teacherName, owner));
+      if (error) {
+        // Simpan detail asli Supabase pada galat supaya catch di bawah bisa
+        // mencetaknya; pesan yang dilihat pengguna tetap versi ramah.
+        const galat = new Error(pesanDb(error.message)) as Error & {
+          supabase?: { code?: string; details?: string | null; hint?: string | null };
+        };
+        galat.supabase = { code: error.code, details: error.details, hint: error.hint };
+        throw galat;
+      }
       sudahAda.add(o.id);
       sudahAdaKunci.add(kunci);
       imported += 1;
-    } catch {
+    } catch (e) {
+      // Penyebab asli (message, code, details, hint) dicetak apa adanya di
+      // console; teks yang dilihat pengguna tidak berubah sama sekali.
+      const err = e as Error & { supabase?: Record<string, unknown> };
+      console.error("[observasi] impor lokal gagal", {
+        observasiId: o.id,
+        message: err.message,
+        ...err.supabase,
+      });
       failed += 1;
       sisa.push(o); // tetap di browser agar tidak hilang
     }
