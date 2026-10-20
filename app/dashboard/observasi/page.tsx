@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -517,7 +517,9 @@ function FormView({
   const [jawaban, setJawaban] = useState<Record<string, Jawaban>>(initial?.jawaban ?? {});
   const [catatan, setCatatan] = useState(initial?.catatan ?? "");
   const [rekomendasi, setRekomendasi] = useState(initial?.rekomendasi ?? "");
-  const [terbuka, setTerbuka] = useState<string[]>(["A"]);
+  // Akordeon: hanya satu bagian yang terbuka pada satu waktu (null = semua tertutup).
+  const [openSection, setOpenSection] = useState<string | null>("A");
+  const headRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const sortedTeachers = useMemo(() => [...teachers].sort((a, b) => a.name.localeCompare(b.name)), [teachers]);
   const draft = { jawaban };
@@ -537,6 +539,18 @@ function FormView({
 
   function setCatatanButir(id: string, teks: string) {
     setJawaban((prev) => ({ ...prev, [id]: { ya: prev[id]?.ya ?? null, catatan: teks } }));
+  }
+
+  // Klik header bagian yang terbuka menutupnya; bagian lain membuka dirinya
+  // dan menutup bagian sebelumnya. Isi yang tertutup tetap ter-mount (hidden).
+  function toggleSection(key: string) {
+    const next = openSection === key ? null : key;
+    setOpenSection(next);
+    if (next) {
+      requestAnimationFrame(() => {
+        headRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }
 
   function lanjut() {
@@ -675,16 +689,17 @@ function FormView({
               {terjawab} dari {SEMUA_BUTIR.length} butir sudah dijawab.
             </p>
             {INSTRUMEN.map((b) => {
-              const buka = terbuka.includes(b.key);
+              const buka = openSection === b.key;
               return (
                 <div key={b.key} className="ob-acc">
                   <button
                     type="button"
                     className="ob-acc-head"
+                    ref={(el) => {
+                      headRefs.current[b.key] = el;
+                    }}
                     aria-expanded={buka}
-                    onClick={() =>
-                      setTerbuka((p) => (p.includes(b.key) ? p.filter((k) => k !== b.key) : [...p, b.key]))
-                    }
+                    onClick={() => toggleSection(b.key)}
                   >
                     <strong>
                       {b.key}. {b.judul}
@@ -693,46 +708,44 @@ function FormView({
                       ({b.butir.length} butir penilaian) <ChevronDown size={16} className={buka ? "is-open" : ""} />
                     </span>
                   </button>
-                  {buka && (
-                    <ul className="ob-butir-list">
-                      {b.butir.map((x, i) => (
-                        <li key={x.id}>
-                          <div className="ob-butir-teks">
-                            <span>{i + 1}</span>
-                            {x.teks}
-                          </div>
-                          <div className="ob-pilih" role="radiogroup" aria-label={x.teks}>
-                            <label className={jawaban[x.id]?.ya === true ? "is-on is-ya" : ""}>
-                              <input
-                                type="radio"
-                                name={x.id}
-                                checked={jawaban[x.id]?.ya === true}
-                                onChange={() => setYa(x.id, true)}
-                              />
-                              Ya
-                            </label>
-                            <label className={jawaban[x.id]?.ya === false ? "is-on is-tidak" : ""}>
-                              <input
-                                type="radio"
-                                name={x.id}
-                                checked={jawaban[x.id]?.ya === false}
-                                onChange={() => setYa(x.id, false)}
-                              />
-                              Tidak
-                            </label>
-                          </div>
-                          <input
-                            type="text"
-                            className="ob-butir-catatan"
-                            placeholder="Catatan (opsional)"
-                            value={jawaban[x.id]?.catatan ?? ""}
-                            onChange={(e) => setCatatanButir(x.id, e.target.value)}
-                            aria-label={`Catatan untuk butir ${x.teks}`}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="ob-butir-list" hidden={!buka}>
+                    {b.butir.map((x, i) => (
+                      <li key={x.id}>
+                        <div className="ob-butir-teks">
+                          <span>{i + 1}</span>
+                          {x.teks}
+                        </div>
+                        <div className="ob-pilih" role="radiogroup" aria-label={x.teks}>
+                          <label className={jawaban[x.id]?.ya === true ? "is-on is-ya" : ""}>
+                            <input
+                              type="radio"
+                              name={x.id}
+                              checked={jawaban[x.id]?.ya === true}
+                              onChange={() => setYa(x.id, true)}
+                            />
+                            Ya
+                          </label>
+                          <label className={jawaban[x.id]?.ya === false ? "is-on is-tidak" : ""}>
+                            <input
+                              type="radio"
+                              name={x.id}
+                              checked={jawaban[x.id]?.ya === false}
+                              onChange={() => setYa(x.id, false)}
+                            />
+                            Tidak
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          className="ob-butir-catatan"
+                          placeholder="Catatan (opsional)"
+                          value={jawaban[x.id]?.catatan ?? ""}
+                          onChange={(e) => setCatatanButir(x.id, e.target.value)}
+                          aria-label={`Catatan untuk butir ${x.teks}`}
+                        />
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               );
             })}
