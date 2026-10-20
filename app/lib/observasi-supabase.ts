@@ -177,6 +177,14 @@ function keRow(o: Observasi, teacherName: string, ownerId: string, guru: Map<str
 
 function pesanDb(msg: string) {
   if (/row-level security|permission denied/i.test(msg)) return "Anda tidak punya izin untuk tindakan ini.";
+  // PGRST204 ("Could not find the '...' column of '...' in the schema cache")
+  // atau Postgres ("column "..." ... does not exist"): sebutkan nama kolom dan
+  // file migrasinya, supaya pengguna tahu persis apa yang harus dijalankan.
+  const kolom =
+    msg.match(/Could not find the '([^']+)' column/i)?.[1] ??
+    msg.match(/column "([^"]+)"[^.]*does not exist/i)?.[1];
+  if (kolom)
+    return `Kolom '${kolom}' belum ada di tabel database. Jalankan file supabase/migrations/20261020120000_observasi_tambah_kolom_aplikasi.sql di SQL Editor Supabase (project yang sama), lalu muat ulang halaman.`;
   if (/does not exist/i.test(msg))
     return "Struktur database belum sesuai dengan kode. Jalankan file migrasi terbaru di supabase/migrations lewat SQL Editor Supabase, lalu muat ulang halaman.";
   return msg;
