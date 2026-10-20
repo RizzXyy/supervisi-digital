@@ -1,6 +1,7 @@
 // Data & logika fitur Observasi.
 // File ini TAMBAHAN: tidak menimpa dashboard-data.ts, hanya memakai loadTeachers/saveTeachers dari sana.
-// Data disimpan di localStorage dulu. Nanti ganti dengan Supabase.
+// Penyimpanan observasi kini di Supabase (lihat observasi-supabase.ts);
+// localStorage di file ini HANYA dibaca untuk impor data lama, sekali jalan.
 
 import { loadTeachers, saveTeachers } from "./dashboard-data";
 
@@ -97,14 +98,6 @@ export function loadObservasi(): Observasi[] {
     /* abaikan */
   }
   return [];
-}
-
-export function saveObservasi(list: Observasi[]) {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(list));
-  } catch {
-    /* penyimpanan penuh atau diblokir */
-  }
 }
 
 // ---------- Hitungan ----------

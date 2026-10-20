@@ -3,31 +3,48 @@
 // hitungSkor, jumlahTerjawab, dan tipe data. Hanya penyimpanannya yang pindah ke cloud.
 //
 // Alur: kepala sekolah menulis observasi (supervisor_id = akunnya sendiri).
-// Guru melihat baris yang sudah diterbitkan, dan pencocokannya berdasarkan
-// NAMA GURU (bukan id akun) — kebijakan RLS di database yang menentukan.
+// Guru melihat baris yang sudah diterbitkan atas namanya; RLS di database
+// mencocokkannya lewat kolom guru_id (uuid akun guru pada tabel profiles).
 //
-// PEMETAAN KOLOM: semua nama kolom database HANYA ada di dua fungsi di bawah,
-// keRow() dan keObservasi(). Komponen memakai tipe Observasi (camelCase) dan
-// tidak perlu tahu nama kolom aslinya. Bila skema DB berubah, cukup ubah dua
-// fungsi itu.
+// PEMETAAN KOLOM (tipe aplikasi Observasi -> kolom public.observasi):
+//   id            -> id           (uuid; id lama "o-..." -> uuid idStabil)
+//   teacherName   -> teacher_name (teks, untuk tampilan daftar)
+//   teacherId     -> guru_id       (uuid: dicari dari tabel profiles lewat
+//                                   nama guru ternormalisasi; guru belum punya
+//                                   akun -> null). Saat baris DIBACA, nama itu
+//                                   dipakai lagi untuk mengembalikan id guru
+//                                   lokal ("t1") supaya filter di laporan,
+//                                   micro-coaching, dan ai-feedback tetap cocok.
+//   date          -> tanggal
+//   mapel         -> mapel         kelas -> kelas
+//   pokok         -> pokok         observer -> observer
+//   status        -> status        catatan -> catatan
+//   jawaban       -> jawaban (jsonb)      rekomendasi -> rekomendasi (text)
+//   riwayat       -> riwayat (jsonb)      diterbitkan -> diterbitkan (bool)
+//   (skor dihitung)          -> skor_akhir (numeric)
+//   (waktu terbit otomatis)  -> diterbitkan_at (diisi bila diterbitkan)
+//   supervisor_id -> uuid kepala sekolah yang login (auth.uid)
+//   jadwal_id     -> tidak dikirim (kolom fitur lain; aplikasi ini tak memakainya)
+//
+// Semua nama kolom database HANYA ada di dua fungsi: keRow() dan keObservasi().
+// Komponen memakai tipe Observasi (camelCase) dan tidak perlu tahu kolom aslinya.
+// Bila skema DB berubah, cukup ubah dua fungsi itu.
 //
 // Perbedaan penting id <-> uuid:
-//   - Kolom id bertipe uuid. Observasi baru kini dibuat dengan uuid
-//     (crypto.randomUUID), jadi id aplikasi = id baris di database.
+//   - Kolom id bertipe uuid. Observasi baru dibuat dengan crypto.randomUUID(),
+//     jadi id aplikasi = id baris di database.
 //   - Data lama di localStorage masih berbentuk "o-1729...". Untuk baris itu
 //     dipakai uuid DETERMINISTIK dari id lamanya (idStabil) supaya upsert
 //     selalu mengganti baris yang sama (tidak duplikat).
-//   - Id guru lokal ("t1") tetap bukan uuid, jadi disimpan di app_teacher_id;
-//     kolom guru_id hanya diisi bila nilainya memang uuid valid.
 
 import { supabase } from "./supabase";
+import { loadTeachers } from "./dashboard-data";
 import { hitungSkor, loadObservasi, type Jawaban, type Observasi, type StatusObs } from "./observasi-data";
 
-// Bentuk baris tabel public.observasi (sesuai struktur di database).
+// Bentuk baris tabel public.observasi (hanya untuk membaca; penulisan lewat keRow).
 type Row = {
   id: string;
   guru_id: string | null;
-  app_teacher_id: string | null;
   teacher_name: string | null;
   supervisor_id: string | null;
   tanggal: string | null;
@@ -50,8 +67,10 @@ type Row = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function uuidOrNull(teks: string | null | undefined) {
-  return teks && UUID_RE.test(teks) ? teks.toLowerCase() : null;
+// Nama guru -> bentuk seragam untuk pencocokan (bagian sebelum koma, huruf
+// kecil) supaya "Budi Santoso, S.Pd" dianggap sama dengan "budi santoso".
+function normNama(teks?: string | null) {
+  return (teks ?? "").split(",")[0].trim().toLowerCase();
 }
 
 // Hash FNV-1a 32-bit dengan seed berbeda, dirangkai jadi 128 bit.
@@ -67,8 +86,7 @@ function fnv1a(teks: string, seed: number) {
 // UUID stabil dari id aplikasi ("o-1729..." -> uuid yang SELALU sama),
 // supaya upsert mengganti baris yang sama, bukan membuat baris baru.
 function idStabil(appId: string): string {
-  const sudah = uuidOrNull(appId);
-  if (sudah) return sudah;
+  if (UUID_RE.test(appId)) return appId.toLowerCase();
   const hex = (n: number) => n.toString(16).padStart(8, "0");
   const h =
     hex(fnv1a(appId, 0x811c9dc5)) +
@@ -79,11 +97,40 @@ function idStabil(appId: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
+// Daftar akun guru dari tabel profiles: nama ternormalisasi -> uuid akunnya.
+// Dibaca oleh kepala sekolah yang menyimpan observasi (kebijakan RLS profiles
+// mengizinkan kepala sekolah membaca seluruh profil). Bila gagal dibaca,
+// fungsi ini melempar galat: lebih baik simpan ditolak daripada tersimpan
+// tanpa guru_id sehingga guru tidak bisa melihat observasinya.
+async function petaGuru(): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from("profiles").select("id, name");
+  if (error) throw new Error(pesanDb(error.message));
+  const peta = new Map<string, string>();
+  for (const p of (data ?? []) as { id: string; name?: string | null }[]) {
+    const kunci = normNama(p.name);
+    if (kunci && !peta.has(kunci)) peta.set(kunci, p.id);
+  }
+  return peta;
+}
+
+// Kebalikannya, dari Data Guru: nama ternormalisasi -> id guru lokal ("t1", ...).
+// Dipakai saat membaca baris supaya id aplikasi terisi lagi untuk form dan
+// filter lain yang membandingkan teacherId.
+function petaIdLokal(): Map<string, string> {
+  const peta = new Map<string, string>();
+  for (const t of loadTeachers()) {
+    const kunci = normNama(t.name);
+    if (kunci && !peta.has(kunci)) peta.set(kunci, t.id);
+  }
+  return peta;
+}
+
 // Baris database -> tipe aplikasi.
-function keObservasi(r: Row): Observasi {
+// idLokal: nama guru ternormalisasi -> id guru lokal.
+function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
   return {
     id: r.id,
-    teacherId: r.app_teacher_id || r.guru_id || "",
+    teacherId: idLokal.get(normNama(r.teacher_name)) ?? "",
     teacherName: r.teacher_name ?? "",
     date: r.tanggal ?? "",
     mapel: r.mapel ?? "",
@@ -100,14 +147,17 @@ function keObservasi(r: Row): Observasi {
 }
 
 // Tipe aplikasi -> baris database.
-function keRow(o: Observasi, teacherName: string, ownerId: string) {
+// guru = hasil petaGuru() (nama ternormalisasi -> uuid akun). Guru yang belum
+// punya akun membuat guru_id null — id teks aplikasi TIDAK pernah ditulis ke
+// kolom bertipe uuid.
+function keRow(o: Observasi, teacherName: string, ownerId: string, guru: Map<string, string>) {
+  const nama = teacherName.trim();
   return {
     id: idStabil(o.id),
-    guru_id: uuidOrNull(o.teacherId),
-    app_teacher_id: o.teacherId || null,
-    teacher_name: teacherName.trim(),
+    teacher_name: nama,
+    guru_id: guru.get(normNama(nama)) ?? null,
     supervisor_id: ownerId,
-    tanggal: o.date,
+    tanggal: o.date || null,
     mapel: o.mapel,
     kelas: o.kelas,
     pokok: o.pokok,
@@ -117,6 +167,8 @@ function keRow(o: Observasi, teacherName: string, ownerId: string) {
     catatan: o.catatan,
     rekomendasi: o.rekomendasi,
     diterbitkan: o.diterbitkan ?? false,
+    // Waktu terbit mengikuti status terbit; saat ditarik kembali, dikosongkan.
+    diterbitkan_at: o.diterbitkan ? new Date().toISOString() : null,
     skor_akhir: hitungSkor({ jawaban: o.jawaban }),
     riwayat: o.riwayat,
     updated_at: new Date().toISOString(),
@@ -147,17 +199,30 @@ export async function listObservasiCloud(): Promise<Observasi[]> {
     .order("tanggal", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw new Error(pesanDb(error.message));
-  return ((data ?? []) as unknown as Row[]).map(keObservasi);
+  const idLokal = petaIdLokal();
+  return ((data ?? []) as unknown as Row[]).map((r) => keObservasi(r, idLokal));
 }
 
 /* ---------- Tulis ---------- */
-// teacherName wajib diisi: itulah kunci yang dipakai RLS untuk menautkan
-// observasi ini ke akun guru yang bersangkutan.
+// teacherName wajib diisi: dari namalah guru dicari di tabel profiles untuk
+// mengisi guru_id — kolom yang dirujuk kebijakan RLS saat guru membaca.
 export async function simpanObservasiCloud(o: Observasi, teacherName: string) {
   const owner = await currentUserId();
-  const row = keRow(o, teacherName, owner);
+  const guru = await petaGuru();
+  const row = keRow(o, teacherName, owner, guru);
   const { error } = await supabase.from("observasi").upsert(row);
-  if (error) throw new Error(pesanDb(error.message));
+  if (error) {
+    // Penyebab asli (code, details, hint) dicetak ke console; pesan yang
+    // dilihat pengguna tetap versi ramah dari pesanDb.
+    console.error("[observasi] simpan gagal", {
+      observasiId: o.id,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(pesanDb(error.message));
+  }
 }
 
 export async function removeObservasiCloud(id: string) {
@@ -170,10 +235,6 @@ export async function removeObservasiCloud(id: string) {
 // Berhasil -> dibiarkan (localStorage dibersihkan); gagal -> tetap di browser
 // dan dicoba lagi kunjungan berikutnya.
 const KEY_LAMA = "supervisi.observasi.v1";
-
-function normNama(teks?: string) {
-  return (teks ?? "").split(",")[0].trim().toLowerCase();
-}
 
 export async function importLocalObservasi(
   cloud: Observasi[],
@@ -191,12 +252,17 @@ export async function importLocalObservasi(
   const sudahAdaKunci = new Set(cloud.map((o) => `${o.date}|${normNama(o.teacherName)}`));
 
   let owner: string;
+  let guru: Map<string, string>;
   try {
     owner = await currentUserId();
+    // Daftar akun guru dipakai untuk mengisi guru_id. Bila gagal dibaca,
+    // impor dibatalkan (data lokal tetap aman) supaya tidak ada baris yang
+    // tersimpan tanpa kaitan ke akun guru.
+    guru = await petaGuru();
   } catch (e) {
-    // Tanpa sesi, impor dibatalkan tanpa menyentuh data lokal.
+    // Tanpa sesi/daftar profil, impor dibatalkan tanpa menyentuh data lokal.
     // Tetap dicetak supaya penyebab banner "belum bisa dipindahkan" terlihat.
-    console.error("[observasi] impor lokal dibatalkan: sesi tidak ditemukan", e);
+    console.error("[observasi] impor lokal dibatalkan: sesi atau daftar profil tidak bisa dibaca", e);
     return { imported: 0, failed: local.length };
   }
 
@@ -214,7 +280,7 @@ export async function importLocalObservasi(
       const teacherName = (o.teacherName ?? namaGuruDariId(o.teacherId) ?? "").trim();
       // upsert (bukan insert) dengan id deterministik dari keRow(): aman diulang —
       // baris yang sama tidak akan terduplikasi bila impor berjalan lagi nanti.
-      const { error } = await supabase.from("observasi").upsert(keRow(o, teacherName, owner));
+      const { error } = await supabase.from("observasi").upsert(keRow(o, teacherName, owner, guru));
       if (error) {
         // Simpan detail asli Supabase pada galat supaya catch di bawah bisa
         // mencetaknya; pesan yang dilihat pengguna tetap versi ramah.
