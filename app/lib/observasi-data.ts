@@ -9,6 +9,10 @@ export type StatusObs = "proses" | "review" | "selesai";
 
 export type Jawaban = { ya: boolean | null; catatan: string };
 
+// Riwayat status sebuah observasi. Field `status` menyimpan KEADAAN aplikasi
+// (proses/review/selesai) pada saat entri itu dibuat.
+export type RiwayatObs = { at: string; teks: string; status?: StatusObs };
+
 export type Observasi = {
   id: string;
   teacherId: string;
@@ -33,7 +37,9 @@ export type Observasi = {
   // Hasil observasi hanya boleh dilihat guru setelah diterbitkan kepala sekolah.
   // Observasi lama (sebelum fitur ini) tidak punya field ini = belum diterbitkan.
   diterbitkan?: boolean;
-  riwayat: { at: string; teks: string }[];
+  // Riwayat status observasi (jsonb). Tiap entri boleh menyimpan `status`
+  // (keadaan aplikasi saat itu) sebagai sumber kebenaran workflow.
+  riwayat: RiwayatObs[];
 };
 
 export const STATUS_OBS: Record<StatusObs, { label: string; bg: string; fg: string }> = {
@@ -43,6 +49,40 @@ export const STATUS_OBS: Record<StatusObs, { label: string; bg: string; fg: stri
 };
 
 export const STATUS_OBS_ORDER: StatusObs[] = ["selesai", "proses", "review"];
+
+// Tabel public.observasi dibuat aplikasi lain lebih dulu, jadi CHECK
+// constraint "observasi_status_check" bisa memakai kosakata status yang
+// BERBEDA dari aplikasi ini (mis. "draf"/"diajukan"). Fungsi ini memetakan
+// nilai apa pun (dari database maupun data lama) ke kosakata aplikasi:
+//   "proses"  <- proses, draf, draft, baru, terjadwal, kosong, dll.
+//   "review"  <- review, diajukan, menunggu, pending
+//   "selesai" <- selesai, disetujui, completed
+// Nilai yang tidak dikenal dianggap "proses" (keadaan paling aman: draft).
+export function normalisasiStatus(v: unknown): StatusObs {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (s === "review" || s === "diajukan" || s === "menunggu" || s === "pending") return "review";
+  if (s === "selesai" || s === "disetujui" || s === "completed" || s === "complete") return "selesai";
+  return "proses";
+}
+
+// Keadaan aplikasi, dibaca dari riwayat: entri terakhir yang menyimpan
+// `status`. Riwayat adalah kolom jsonb milik aplikasi, jadi tidak pernah
+// ditolak CHECK constraint database — di sinilah workflow aplikasi disimpan.
+export function statusDariRiwayat(riwayat: RiwayatObs[] | null | undefined): StatusObs | null {
+  if (!riwayat?.length) return null;
+  for (let i = riwayat.length - 1; i >= 0; i--) {
+    const s = riwayat[i]?.status;
+    if (s === "proses" || s === "review" || s === "selesai") return s;
+  }
+  return null;
+}
+
+// Meta status yang aman: kalau status di luar kosakata aplikasi (mis. baris
+// lama di database), pakai "proses" supaya tampilan tidak pernah error
+// (STATUS_OBS[status] undefined -> TypeError saat render).
+export function metaStatus(s: unknown): { label: string; bg: string; fg: string } {
+  return STATUS_OBS[normalisasiStatus(s)];
+}
 
 // Instrumen observasi. Tambah/ubah butir di sini, form dan hasil ikut berubah.
 export type Butir = { id: string; teks: string };

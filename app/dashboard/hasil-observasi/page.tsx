@@ -5,7 +5,7 @@ import { Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Downloa
 import { useRoleGuard } from "../../lib/use-role-guard";
 import { getSession, type Role, type Session } from "../../lib/auth";
 import { formatTanggalPendek, fromDateKey } from "../../lib/dashboard-data";
-import { INSTRUMEN, STATUS_OBS, hitungSkor, inisial, type Observasi } from "../../lib/observasi-data";
+import { INSTRUMEN, hitungSkor, inisial, metaStatus, type Observasi } from "../../lib/observasi-data";
 import { listObservasiCloud } from "../../lib/observasi-supabase";
 import "../dashboard-home.css";
 import "../observasi/observasi.css";
@@ -137,7 +137,7 @@ export default function HasilObservasiPage() {
 function HasilDetail({ o, guru, onBack }: { o: Observasi; guru: string; onBack: () => void }) {
   const [tab, setTab] = useState<(typeof TAB)[number]>("Kegiatan Pembelajaran");
   const [terbuka, setTerbuka] = useState<string[]>(["A"]);
-  const meta = STATUS_OBS[o.status];
+  const meta = metaStatus(o.status);
   const tanggal = fromDateKey(o.date);
 
   return (

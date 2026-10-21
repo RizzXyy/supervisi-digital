@@ -37,6 +37,7 @@ import {
   hitungSkor,
   inisial,
   jumlahTerjawab,
+  metaStatus,
   stempelWaktu,
   terapkanSkorGuru,
   type Jawaban,
@@ -405,7 +406,7 @@ function ListView({
                 </tr>
               ) : (
                 rows.map((o, i) => {
-                  const meta = STATUS_OBS[o.status];
+                  const meta = metaStatus(o.status);
                   const nama = nameOf(o);
                   return (
                     <tr key={o.id}>
@@ -528,6 +529,15 @@ function labelAkun(a: AkunGuru, daftar: AkunGuru[]) {
   return kembar ? `${a.name} (${a.id.slice(0, 8)})` : a.name;
 }
 
+// Pencocokan guru (id lokal) -> uuid akun. Nama hanya petunjuk, bukan
+// identitas: dipakai HANYA bila TEPAT SATU akun namanya cocok. 0 akun atau
+// nama kembar -> kosong, supaya kepsek memilih sendiri.
+function cocokkanAkun(akunGuru: AkunGuru[], teachers: Teacher[], idGuru: string): string {
+  const nama = teachers.find((t) => t.id === idGuru)?.name ?? "";
+  const cocok = nama ? akunGuru.filter((a) => normNama(a.name) === normNama(nama)) : [];
+  return cocok.length === 1 ? cocok[0].id : "";
+}
+
 function FormView({
   initial,
   prefill,
@@ -550,13 +560,19 @@ function FormView({
   const [error, setError] = useState("");
   const [teacherId, setTeacherId] = useState(initial?.teacherId ?? prefill?.teacherId ?? "");
   // uuid akun yang TERHUBUNG ke guru terpilih — inilah yang disimpan ke kolom
-  // guru_id. Awalnya dari baris yang diedit (uuid dari database, bila masih
-  // ada di daftar akun); kalau belum, isikan otomatis hanya bila TEPAT SATU
-  // akun namanya cocok — selain itu biarkan kosong supaya kepsek memilih
-  // sendiri. Nama hanya untuk prapilih; yang disimpan selalu pilihan eksplisit.
-  const [guruAkunId, setGuruAkunId] = useState(() =>
-    cocokkanAkun(initial?.teacherId ?? prefill?.teacherId ?? "", initial?.guruAkunId),
-  );
+  // guru_id.
+  //
+  // PENTING: daftar akun (akunGuru) dimuat ASINKRON setelah form tampil, jadi
+  // nilai awal TIDAK bisa dihitung di useState initializer (daftarnya masih
+  // kosong -> hasil pencocokan selalu kosong -> id akun yang tersimpan hilang
+  // dan guru_id jadi null saat disimpan).
+  //
+  // Solusi: simpan HANYA pilihan eksplisit pengguna. null = belum memilih,
+  // jadi nilai efektif dihitung ulang saat render:
+  //   pilihan eksplisit > id akun yang tersimpan di baris yang diedit >
+  //   pencocokan otomatis (hanya bila TEPAT SATU akun namanya cocok).
+  // Nama hanya untuk prapilih; yang disimpan selalu pilihan eksplisit.
+  const [guruAkunIdPilih, setGuruAkunIdPilih] = useState<string | null>(null);
   const [mapel, setMapel] = useState(initial?.mapel ?? prefill?.mapel ?? "");
   const [kelas, setKelas] = useState(initial?.kelas ?? prefill?.kelas ?? "");
   const [pokok, setPokok] = useState(initial?.pokok ?? "");
@@ -569,21 +585,20 @@ function FormView({
   const [openSection, setOpenSection] = useState<string | null>("A");
   const headRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  // Hubungkan guru terpilih (id lokal) ke akun: simpan pilihan tersimpan bila
-  // masih ada; selain itu prapilih hanya bila TEPAT SATU akun namanya cocok
-  // (nama = petunjuk semata, bukan identitas); 0 atau kembar -> biarkan kosong.
-  function cocokkanAkun(idGuru: string, tersimpan?: string | null) {
-    if (tersimpan && akunGuru.some((a) => a.id === tersimpan)) return tersimpan;
-    const nama = teachers.find((t) => t.id === idGuru)?.name ?? "";
-    const cocok = nama ? akunGuru.filter((a) => normNama(a.name) === normNama(nama)) : [];
-    return cocok.length === 1 ? cocok[0].id : "";
-  }
-
   const sortedTeachers = useMemo(
     () => [...teachers].sort((a, b) => a.name.localeCompare(b.name)),
     [teachers],
   );
   const sortedAkun = useMemo(() => [...akunGuru].sort((a, b) => a.name.localeCompare(b.name)), [akunGuru]);
+
+  // Nilai efektif akun guru (lihat catatan di state guruAkunIdPilih).
+  const guruAkunId = useMemo(() => {
+    if (guruAkunIdPilih !== null) return guruAkunIdPilih;
+    const tersimpan = initial?.guruAkunId;
+    if (tersimpan && akunGuru.some((a) => a.id === tersimpan)) return tersimpan;
+    return cocokkanAkun(akunGuru, teachers, initial?.teacherId ?? prefill?.teacherId ?? "");
+  }, [guruAkunIdPilih, initial?.guruAkunId, initial?.teacherId, prefill?.teacherId, akunGuru, teachers]);
+
   const akunTerpilih = sortedAkun.find((a) => a.id === guruAkunId);
   const draft = { jawaban };
   const terjawab = jumlahTerjawab(draft);
@@ -594,7 +609,9 @@ function FormView({
   function pilihGuru(id: string) {
     const t = teachers.find((x) => x.id === id);
     setTeacherId(id);
-    setGuruAkunId(cocokkanAkun(id));
+    // Ganti guru -> ganti juga akunnya: tepat satu yang cocok -> dipakai,
+    // selain itu diisi kosong (kepsek yang memilih).
+    setGuruAkunIdPilih(cocokkanAkun(akunGuru, teachers, id) || "");
     setMapel((prev) => prev || t?.mapel || "");
     setKelas((prev) => prev || t?.kelas || "");
   }
@@ -665,7 +682,11 @@ function FormView({
         catatan: catatan.trim(),
         rekomendasi: rekomendasi.trim(),
         diterbitkan: initial?.diterbitkan,
-        riwayat: [...(initial?.riwayat ?? []), { at: stempelWaktu(), teks: riwayatBaru }],
+        // `status` di riwayat = keadaan aplikasi saat entri ini dibuat.
+        // Ini yang jadi sumber kebenaran workflow: kolom `status` di database
+        // punya CHECK constraint dengan kosakata sendiri, jadi tidak selalu
+        // bisa ditulis (lihat observasi-supabase.ts).
+        riwayat: [...(initial?.riwayat ?? []), { at: stempelWaktu(), teks: riwayatBaru, status }],
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan observasi. Coba lagi.");
@@ -729,7 +750,7 @@ function FormView({
               </div>
               <label className="dg-field">
                 Akun Guru (untuk hasil terlihat oleh guru)
-                <select value={guruAkunId} onChange={(e) => setGuruAkunId(e.target.value)}>
+                <select value={guruAkunId} onChange={(e) => setGuruAkunIdPilih(e.target.value)}>
                   <option value="">Belum terhubung</option>
                   {sortedAkun.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -965,7 +986,7 @@ function DetailView({
   const [tab, setTab] = useState<(typeof TAB)[number]>("Kegiatan Pembelajaran");
   const [terbuka, setTerbuka] = useState<string[]>(["A"]);
   const [aksiError, setAksiError] = useState("");
-  const meta = STATUS_OBS[o.status];
+  const meta = metaStatus(o.status);
   const tanggal = fromDateKey(o.date);
 
   async function jalankan(next: Observasi) {
@@ -981,7 +1002,7 @@ function DetailView({
     void jalankan({
       ...o,
       status: "selesai",
-      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Review disetujui, skor ${hitungSkor(o)}` }],
+      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Review disetujui, skor ${hitungSkor(o)}`, status: "selesai" }],
     });
   }
 
@@ -990,7 +1011,7 @@ function DetailView({
     void jalankan({
       ...o,
       diterbitkan: true,
-      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Hasil diterbitkan untuk guru (skor ${hitungSkor(o)})` }],
+      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: `Hasil diterbitkan untuk guru (skor ${hitungSkor(o)})`, status: o.status }],
     });
   }
 
@@ -998,7 +1019,7 @@ function DetailView({
     void jalankan({
       ...o,
       diterbitkan: false,
-      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: "Penerbitan hasil dibatalkan" }],
+      riwayat: [...o.riwayat, { at: stempelWaktu(), teks: "Penerbitan hasil dibatalkan", status: o.status }],
     });
   }
 

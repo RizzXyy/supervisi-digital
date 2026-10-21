@@ -26,7 +26,7 @@ import {
   toDateKey,
   type Teacher,
 } from "../../lib/dashboard-data";
-import { STATUS_OBS, inisial, stempelWaktu, type Observasi } from "../../lib/observasi-data";
+import { inisial, metaStatus, stempelWaktu, type Observasi } from "../../lib/observasi-data";
 import { listObservasiCloud } from "../../lib/observasi-supabase";
 import { getAccessToken } from "../../lib/auth";
 import {
@@ -783,7 +783,7 @@ function Halaman({ boot }: { boot: Boot }) {
                   </option>
                   {obsFormOpsi.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} ({STATUS_OBS[o.status].label})
+                      {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} ({metaStatus(o.status).label})
                     </option>
                   ))}
                 </select>
@@ -850,7 +850,7 @@ function Halaman({ boot }: { boot: Boot }) {
                       <select value={pilihObs} onChange={(e) => setPilihObs(e.target.value)}>
                         {obsGuru.map((o) => (
                           <option key={o.id} value={o.id}>
-                            {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} ({STATUS_OBS[o.status].label})
+                            {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} ({metaStatus(o.status).label})
                           </option>
                         ))}
                       </select>

@@ -44,7 +44,15 @@
 
 import { supabase } from "./supabase";
 import { loadTeachers } from "./dashboard-data";
-import { hitungSkor, loadObservasi, type Jawaban, type Observasi, type StatusObs } from "./observasi-data";
+import {
+  hitungSkor,
+  loadObservasi,
+  normalisasiStatus,
+  statusDariRiwayat,
+  type Jawaban,
+  type Observasi,
+  type RiwayatObs,
+} from "./observasi-data";
 
 // Bentuk baris tabel public.observasi (hanya untuk membaca; penulisan lewat keRow).
 type Row = {
@@ -64,7 +72,7 @@ type Row = {
   rekomendasi: string | null;
   diterbitkan: boolean | null;
   skor_akhir: number | null;
-  riwayat: { at: string; teks: string }[] | null;
+  riwayat: RiwayatObs[] | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -166,7 +174,10 @@ function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
     kelas: r.kelas ?? "",
     pokok: r.pokok ?? "",
     observer: r.observer ?? "",
-    status: (r.status ?? "proses") as StatusObs,
+    // Keadaan workflow aplikasi diambil dari `riwayat` (jsonb milik aplikasi).
+    // Kalau baris lama tidak punya `status` di riwayat, pakai kolom `status`
+    // milik database yang dinormalisasi ke kosakata aplikasi.
+    status: statusDariRiwayat(r.riwayat) ?? normalisasiStatus(r.status),
     jawaban: r.jawaban ?? {},
     catatan: r.catatan ?? "",
     rekomendasi: r.rekomendasi ?? "",
@@ -179,6 +190,17 @@ function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
 // guru_id diambil dari o.guruAkunId: uuid akun yang dipilih eksplisit di
 // dropdown "Akun Guru". Nilai bukan-uuid dibuang ke null (kolom bertipe uuid);
 // id teks aplikasi TIDAK PERNAH ditulis, dan nama TIDAK dipakai menebak.
+//
+// PENTING (kolom `status`): tabel observasi dibuat aplikasi lain lebih dulu,
+// jadi CHECK constraint "observasi_status_check" bisa memakai kosakata status
+// yang BERBEDA dari aplikasi ini (mis. "draf"/"diajukan"). Menulis nilai yang
+// tidak diterima akan gagal dengan:
+//   new row for relation "observasi" violates check constraint
+//   "observasi_status_check"
+// Karena itu nilai `status` SELALU dinormalisasi ke kosakata aplikasi, dan
+// kalau database tetap menolaknya, simpan diulang tanpa kolom `status` (lihat
+// simpanObservasiCloud). Workflow aplikasi tidak hilang: keadaan
+// proses/review/selesai disimpan di `riwayat` (jsonb milik aplikasi).
 function keRow(o: Observasi, teacherName: string, ownerId: string) {
   const nama = teacherName.trim();
   const akun = o.guruAkunId && UUID_RE.test(o.guruAkunId) ? o.guruAkunId : null;
@@ -195,7 +217,11 @@ function keRow(o: Observasi, teacherName: string, ownerId: string) {
     kelas: o.kelas,
     pokok: o.pokok,
     observer: o.observer,
-    status: o.status,
+    // Keadaan aplikasi (proses/review/selesai) selalu dinormalisasi ke
+    // kosakata aplikasi, karena CHECK constraint database bisa memakai
+    // kosakata lain (mis. "draf"/"diajukan"). Sumber kebenaran workflow ada
+    // di `riwayat`; lihat catatan panjang di atas fungsi ini.
+    status: statusDariRiwayat(o.riwayat) ?? normalisasiStatus(o.status),
     jawaban: o.jawaban,
     catatan: o.catatan,
     rekomendasi: o.rekomendasi,
@@ -210,6 +236,13 @@ function keRow(o: Observasi, teacherName: string, ownerId: string) {
 
 function pesanDb(msg: string) {
   if (/row-level security|permission denied/i.test(msg)) return "Anda tidak punya izin untuk tindakan ini.";
+  // CHECK constraint yang ditolak: "new row for relation "observasi" violates
+  // check constraint "observasi_status_check"". Sebutkan constraint-nya dan
+  // file migrasi yang menyelaraskan kolom status dengan aplikasi.
+  if (/violates check constraint/i.test(msg)) {
+    const nama = msg.match(/check constraint "([^"]+)"/i)?.[1] ?? "observasi_status_check";
+    return `Nilai status tidak diterima database (constraint "${nama}"). Jalankan file supabase/migrations/20261021130000_observasi_status_constraint.sql di SQL Editor Supabase, lalu muat ulang halaman.`;
+  }
   // PGRST204 ("Could not find the '...' column of '...' in the schema cache")
   // atau Postgres ("column "..." ... does not exist"): sebutkan nama kolom dan
   // file migrasinya, supaya pengguna tahu persis apa yang harus dijalankan.
@@ -254,24 +287,69 @@ export async function listObservasiCloud(): Promise<Observasi[]> {
 }
 
 /* ---------- Tulis ---------- */
+// Nilai `status` ditolak CHECK constraint database?
+//   "new row for relation \"observasi\" violates check constraint
+//    \"observasi_status_check\""
+function ditolakStatus(message: string) {
+  return /violates check constraint/i.test(message) && /status/i.test(message);
+}
+
+type GalatUpsert = {
+  code?: string;
+  message: string;
+  details?: string | null;
+  hint?: string | null;
+};
+
+// Upsert baris observasi dengan jaring pengaman:
+// kalau database MENOLAK kolom `status` (CHECK constraint memakai kosakata
+// lain, mis. "draf"/"diajukan"), simpan ulang TANPA kolom itu supaya
+// observasi tetap tersimpan dan tidak ada galat ke pengguna. Keadaan aplikasi
+// (proses/review/selesai) tidak hilang karena disimpan di `riwayat`.
+//   INSERT -> kolom status diisi default database
+//   UPDATE -> nilai status lama di baris itu dipertahankan
+// Mengembalikan null bila tersimpan, atau objek galat bila gagal.
+async function upsertObservasi(row: Record<string, unknown>): Promise<GalatUpsert | null> {
+  const { error } = await supabase.from("observasi").upsert(row);
+  if (!error) return null;
+
+  // Penyebab asli (code, details, hint) dicetak ke console; pesan yang
+  // dilihat pengguna tetap versi ramah dari pesanDb.
+  console.error("[observasi] simpan gagal", {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  });
+
+  if (!ditolakStatus(error.message)) return error;
+
+  const tanpaStatus: Record<string, unknown> = { ...row };
+  delete tanpaStatus.status;
+  const ulang = await supabase.from("observasi").upsert(tanpaStatus);
+  if (!ulang.error) {
+    console.warn(
+      "[observasi] kolom 'status' ditolak CHECK constraint database; disimpan tanpa kolom itu. " +
+        "Jalankan supabase/migrations/20261021130000_observasi_status_constraint.sql agar " +
+        "kosakata status aplikasi ('proses'/'review'/'selesai') bisa ditulis ke kolom status.",
+    );
+    return null;
+  }
+
+  console.error("[observasi] simpan ulang tanpa kolom 'status' gagal", {
+    code: ulang.error.code,
+    message: ulang.error.message,
+  });
+  return ulang.error;
+}
+
 // teacherName wajib diisi: dari namalah guru dicari di tabel profiles untuk
 // mengisi guru_id — kolom yang dirujuk kebijakan RLS saat guru membaca.
 export async function simpanObservasiCloud(o: Observasi, teacherName: string) {
   const owner = await currentUserId();
   const row = keRow(o, teacherName, owner);
-  const { error } = await supabase.from("observasi").upsert(row);
-  if (error) {
-    // Penyebab asli (code, details, hint) dicetak ke console; pesan yang
-    // dilihat pengguna tetap versi ramah dari pesanDb.
-    console.error("[observasi] simpan gagal", {
-      observasiId: o.id,
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-    });
-    throw new Error(pesanDb(error.message));
-  }
+  const error = await upsertObservasi(row);
+  if (error) throw new Error(pesanDb(error.message));
 }
 
 export async function removeObservasiCloud(id: string) {
@@ -327,7 +405,9 @@ export async function importLocalObservasi(
       // guru_id sengaja null: data lama tidak punya kaitan uuid yang pasti, dan
       // menebak dari nama bisa salah orang (nama bisa kembar). Baris hasil impor
       // tetap terlihat bagi kepsek; guru_id bisa diisi lewat SQL bila perlu.
-      const { error } = await supabase.from("observasi").upsert(keRow(o, teacherName, owner));
+      // Data lama bisa memakai kosakata status yang(database) tidak terima,
+      // jadi kolom `status` otomatis dilepas bila ditolak CHECK constraint.
+      const error = await upsertObservasi(keRow(o, teacherName, owner));
       if (error) {
         // Simpan detail asli Supabase pada galat supaya catch di bawah bisa
         // mencetaknya; pesan yang dilihat pengguna tetap versi ramah.
