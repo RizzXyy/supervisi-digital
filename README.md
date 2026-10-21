@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Supervisi Digital
 
-## Getting Started
+Aplikasi supervisi sekolah: observasi kelas, RPP/modul ajar, micro-coaching,
+dan e-portofolio. Data disimpan di Supabase (PostgreSQL + Storage), bukan di
+localStorage.
 
-First, run the development server:
+## Menjalankan aplikasi
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build    # cek produksi
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Isi `.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup database
+
+Semua perubahan bentuk database ada di `supabase/migrations/*.sql` dan
+dijalankan manual di **SQL Editor Supabase** (project yang sama dengan
+`.env.local`), lalu halaman di-muat ulang.
+
+### Cara tercepat (database lama sudah tidak rapi)
+
+Tabel `observasi`, `profiles`, dan `rpp` pada project ini dibuat lebih dulu
+oleh aplikasi lain, sehingga bentuknya berbeda dari yang dipakai aplikasi ini.
+Yang paling mengganggu: CHECK constraint `observasi_status_check` menolak nilai
+status `proses`/`review`/`selesai` sehingga observasi gagal tersimpan.
+
+Jalankan **satu file** ini di SQL Editor:
+
+```
+supabase/migrations/20261021140000_skema_kanonik.sql
+```
+
+File tersebut menyamakan bentuk ketiga tabel (kolom, CHECK constraint status,
+kebijakan RLS, fungsi bantu, bucket storage) dengan kebutuhan aplikasi.
+Idempoten dan tidak menghapus data.
+
+### Mulai dari nol (semua data aplikasi dihapus)
+
+Kalau database lama memang tidak bisa dipakai lagi:
+
+1. `supabase/reset-database.sql` — menghapus tabel `observasi`, `rpp`,
+   `profiles`, dan file di bucket `rpp-files`. **Akun login tidak ikut
+   terhapus.**
+2. `supabase/migrations/20261021140000_skema_kanonik.sql` — membangun ulang
+   semuanya.
+
+### Migrasi lain
+
+| File | Isi |
+| --- | --- |
+| `20261019120000_rpp_longgarkan_form.sql` | RPP: kolom form tidak boleh NOT NULL tanpa default |
+| `20261019190000_rpp_bucket_grant_dan_rls.sql` | Bucket `rpp-files` + RPP grant/kebijakan RLS |
+| `20261019200000_rpp_sesuaikan_kolom_form.sql` | RPP: sesuaikan kolom form |
+| `20261019210000_observasi_ke_supabase.sql` | Observasi pindah dari localStorage ke Supabase |
+| `20261020120000_observasi_tambah_kolom_aplikasi.sql` | Observasi: tambah kolom yang dipakai aplikasi |
+| `20261021090000_profil_per_akun.sql` | Profil per akun (tabel `profiles`) |
+| `20261021120000_profil_kolom_hilang.sql` | Profiles: kolom `email` & `ajaran` |
+| `20261021130000_observasi_status_constraint.sql` | Observasi: selaraskan CHECK constraint status |
+| `20261021140000_skema_kanonik.sql` | **Skema kanonik seluruh aplikasi (jalan pintas)** |
+
+### Verifikasi
+
+```sql
+-- CHECK constraint status harus memuat proses/review/selesai
+select conname, pg_get_constraintdef(oid) as definisi
+  from pg_constraint
+ where conrelid = 'public.observasi'::regclass and contype = 'c';
+
+-- kebijakan RLS
+select tablename, policyname, cmd
+  from pg_policies
+ where schemaname = 'public'
+ order by tablename, policyname;
+```
+
+## Catatan penting
+
+- **Status observasi**: keadaan aplikasi (`proses`/`review`/`selesai`) disimpan
+  di kolom `riwayat` (jsonb milik aplikasi), bukan bergantung pada kolom
+  `status` milik database. Alasannya, CHECK constraint `observasi_status_check`
+  dibuat aplikasi lain dan kosakatanya bisa berbeda. Lihat
+  `app/lib/observasi-data.ts` (`normalisasiStatus`, `statusDariRiwayat`).
+- **Guru hanya melihat observasi atas namanya sendiri** yang sudah
+  diterbitkan. Dipisahkan lewat RLS (`guru_id = auth.uid()`), bukan lewat kode
+  di browser.
+- **Kolom database hanya boleh disebut di `keRow()` dan `keObservasi()`**
+  (`app/lib/observasi-supabase.ts`). Komponen lain memakai tipe `Observasi`.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Docs](https://supabase.com/docs)
