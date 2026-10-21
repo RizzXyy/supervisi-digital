@@ -2,12 +2,16 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Plus, Trash2, Eye, EyeOff, CircleCheck } from "lucide-react";
+import {
+  getProfilSaya,
+  simpanProfilSaya,
+  ubahKataSandi,
+  type Role,
+} from "../../lib/auth";
 import s from "./profil.module.css";
 
 type Ajar = { id: number; mapel: string; kelas: string };
 type Errors = Record<string, string>;
-
-const STORAGE_KEY = "supervisi-profil-guru";
 
 /* Pembungkus label + pesan error agar tidak diulang-ulang */
 function Field({
@@ -68,6 +72,7 @@ export default function ProfilPage() {
   const [nama, setNama] = useState("Indi Ramadhani");
   const [email, setEmail] = useState("");
   const [nomor, setNomor] = useState("");
+  const [role, setRole] = useState<Role>("guru");
   const [ajar, setAjar] = useState<Ajar[]>([{ id: 1, mapel: "", kelas: "" }]);
   const [pwLama, setPwLama] = useState("");
   const [pwBaru, setPwBaru] = useState("");
@@ -75,23 +80,31 @@ export default function ProfilPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [saved, setSaved] = useState(false);
 
-  // Muat data yang pernah disimpan (sementara di browser, belum ke database).
-  // Dimuat lewat setTimeout agar tidak menimbulkan cascading render.
+  // Muat profil milik AKUN YANG LOGIN dari tabel public.profiles
+  // (satu baris per akun, id = auth.uid — jadi tiap akun punya profilnya
+  // sendiri). Data lama di localStorage "supervisi-profil-guru" sengaja
+  // TIDAK dibaca lagi: kunci itu bersama untuk seluruh akun di browser yang
+  // sama, itulah penyebab profil akun lain tertimpa.
   useEffect(() => {
+    let active = true;
     const id = window.setTimeout(() => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const d = JSON.parse(raw);
-        if (d.nama) setNama(d.nama);
-        if (d.email) setEmail(d.email);
-        if (d.nomor) setNomor(d.nomor);
-        if (Array.isArray(d.ajar) && d.ajar.length > 0) setAjar(d.ajar);
-      } catch {
-        /* abaikan jika data rusak */
-      }
+      void getProfilSaya().then((p) => {
+        if (!active || !p) return;
+        setNama(p.name);
+        setEmail(p.email);
+        setNomor(p.nip);
+        setRole(p.role);
+        setAjar(
+          p.ajaran.length
+            ? p.ajaran.map((a, i) => ({ id: i + 1, mapel: a.mapel, kelas: a.kelas }))
+            : [{ id: 1, mapel: "", kelas: "" }],
+        );
+      });
     }, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      active = false;
+      window.clearTimeout(id);
+    };
   }, []);
 
   const inisial = nama
@@ -110,25 +123,27 @@ export default function ProfilPage() {
 
     if (nama.trim().length < 3) e.nama = "Nama lengkap minimal 3 karakter.";
 
-    if (!email.trim()) e.email = "Email akun wajib diisi.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      e.email = "Format email tidak valid.";
+    // Email hanya tampilan (read-only) dari akun Auth; kosong = sesi bermasalah.
+    if (!email.trim()) e.email = "Akun tidak ditemukan. Silakan login ulang.";
 
     // NIP = 18 digit, NUPTK = 16 digit. Boleh kosong.
     if (nomor && !/^\d+$/.test(nomor)) e.nomor = "Hanya boleh berisi angka.";
     else if (nomor && nomor.length !== 16 && nomor.length !== 18)
       e.nomor = "NUPTK terdiri dari 16 digit, NIP 18 digit.";
 
-    // Setiap baris mapel harus lengkap; minimal ada satu
-    let adaLengkap = false;
-    ajar.forEach((a) => {
-      const m = a.mapel.trim();
-      const k = a.kelas.trim();
-      if (m && k) adaLengkap = true;
-      else if (m || k) e[`ajar-${a.id}`] = "Isi mata pelajaran dan kelas.";
-    });
-    if (!adaLengkap && !Object.keys(e).some((k) => k.startsWith("ajar-")))
-      e.ajarUmum = "Tambahkan minimal satu mata pelajaran dan kelas.";
+    // Bagian "Mata Pelajaran & Kelas yang Diajar" hanya untuk akun guru
+    // (kepala sekolah tidak mengisinya, jadi tidak divalidasi juga).
+    if (role === "guru") {
+      let adaLengkap = false;
+      ajar.forEach((a) => {
+        const m = a.mapel.trim();
+        const k = a.kelas.trim();
+        if (m && k) adaLengkap = true;
+        else if (m || k) e[`ajar-${a.id}`] = "Isi mata pelajaran dan kelas.";
+      });
+      if (!adaLengkap && !Object.keys(e).some((k) => k.startsWith("ajar-")))
+        e.ajarUmum = "Tambahkan minimal satu mata pelajaran dan kelas.";
+    }
 
     // Kata sandi hanya divalidasi bila salah satu kolom diisi
     if (pwLama || pwBaru || pwKonf) {
@@ -143,28 +158,40 @@ export default function ProfilPage() {
     return e;
   }
 
-  function handleSubmit(ev: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     setSaved(false);
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
-    // Kata sandi sengaja TIDAK disimpan di browser.
-    // Untuk benar-benar mengubahnya, kirim ke backend/API di sini.
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          nama: nama.trim(),
-          email: email.trim(),
-          nomor,
-          ajar: ajar.filter((a) => a.mapel.trim() && a.kelas.trim()),
-        })
-      );
-    } catch {
-      /* abaikan */
+    // Kata sandi: verifikasi sandi lama, lalu updateUser milik Supabase Auth
+    // (berbeda dengan profil, ini tidak disimpan di mana pun di aplikasi).
+    if (pwLama || pwBaru || pwKonf) {
+      const r = await ubahKataSandi(email, pwLama, pwBaru);
+      if (!r.ok) {
+        setErrors({ pw: r.error ?? "Gagal mengubah kata sandi. Coba lagi." });
+        return;
+      }
     }
+
+    // Simpan nama/NIP/ajaran ke baris profiles MILIK SENDIRI (id = auth.uid;
+    // dibatasi RLS). Email tidak dikirim dari form — nilainya disinkronkan
+    // dari akun Auth di dalam simpanProfilSaya.
+    const r = await simpanProfilSaya({
+      name: nama.trim(),
+      nip: nomor,
+      ajaran: role === "guru" ? ajar.filter((a) => a.mapel.trim() && a.kelas.trim()) : [],
+      role,
+    });
+    if (!r.ok) {
+      setErrors({ simpan: r.error ?? "Gagal menyimpan profil. Coba lagi." });
+      return;
+    }
+
+    // Beritahu Sidebar (komponen tetap di seluruh dashboard) untuk memuat
+    // ulang sesi: nama tampilan ikut menyesuaikan tanpa muat ulang halaman.
+    window.dispatchEvent(new Event("profil:berubah"));
     setPwLama("");
     setPwBaru("");
     setPwKonf("");
@@ -201,12 +228,16 @@ export default function ProfilPage() {
                   placeholder="Nama lengkap beserta gelar"
                 />
               </Field>
-              <Field label="Email Akun" error={errors.email}>
+              <Field
+                label="Email Akun"
+                error={errors.email}
+                hint="Email diambil dari akun login dan diubah lewat pengaturan email resmi Supabase (tautan konfirmasi dikirim ke email)."
+              >
                 <input
                   className={s.input}
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  readOnly
                   placeholder="nama@email.com"
                 />
               </Field>
@@ -227,54 +258,56 @@ export default function ProfilPage() {
           </div>
         </section>
 
-        {/* Mapel & kelas */}
-        <section className={s.panel}>
-          <div className={s.panelHead}>
-            <h2 className={s.panelTitle}>Mata Pelajaran & Kelas yang Diajar</h2>
-            <button
-              type="button"
-              className={s.btnOutline}
-              onClick={() =>
-                setAjar([...ajar, { id: Date.now(), mapel: "", kelas: "" }])
-              }
-            >
-              <Plus size={16} /> Tambah
-            </button>
-          </div>
-
-          {errors.ajarUmum && <div className={s.error}>{errors.ajarUmum}</div>}
-
-          {ajar.map((a) => (
-            <div key={a.id} className={s.ajarBlock}>
-              <div className={s.ajarRow}>
-                <input
-                  className={s.input}
-                  value={a.mapel}
-                  onChange={(e) => updateAjar(a.id, "mapel", e.target.value)}
-                  placeholder="Mata pelajaran, mis. Matematika"
-                />
-                <input
-                  className={s.input}
-                  value={a.kelas}
-                  onChange={(e) => updateAjar(a.id, "kelas", e.target.value)}
-                  placeholder="Kelas, mis. VII A, VII B"
-                />
-                <button
-                  type="button"
-                  className={s.trash}
-                  disabled={ajar.length === 1}
-                  onClick={() => setAjar(ajar.filter((x) => x.id !== a.id))}
-                  aria-label="Hapus baris"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-              {errors[`ajar-${a.id}`] && (
-                <div className={s.error}>{errors[`ajar-${a.id}`]}</div>
-              )}
+        {/* Mapel & kelas — hanya untuk akun guru (kepala sekolah tidak mengajar) */}
+        {role === "guru" && (
+          <section className={s.panel}>
+            <div className={s.panelHead}>
+              <h2 className={s.panelTitle}>Mata Pelajaran & Kelas yang Diajar</h2>
+              <button
+                type="button"
+                className={s.btnOutline}
+                onClick={() =>
+                  setAjar([...ajar, { id: Date.now(), mapel: "", kelas: "" }])
+                }
+              >
+                <Plus size={16} /> Tambah
+              </button>
             </div>
-          ))}
-        </section>
+
+            {errors.ajarUmum && <div className={s.error}>{errors.ajarUmum}</div>}
+
+            {ajar.map((a) => (
+              <div key={a.id} className={s.ajarBlock}>
+                <div className={s.ajarRow}>
+                  <input
+                    className={s.input}
+                    value={a.mapel}
+                    onChange={(e) => updateAjar(a.id, "mapel", e.target.value)}
+                    placeholder="Mata pelajaran, mis. Matematika"
+                  />
+                  <input
+                    className={s.input}
+                    value={a.kelas}
+                    onChange={(e) => updateAjar(a.id, "kelas", e.target.value)}
+                    placeholder="Kelas, mis. VII A, VII B"
+                  />
+                  <button
+                    type="button"
+                    className={s.trash}
+                    disabled={ajar.length === 1}
+                    onClick={() => setAjar(ajar.filter((x) => x.id !== a.id))}
+                    aria-label="Hapus baris"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                {errors[`ajar-${a.id}`] && (
+                  <div className={s.error}>{errors[`ajar-${a.id}`]}</div>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* Kata sandi */}
         <section className={s.panel}>
@@ -310,6 +343,10 @@ export default function ProfilPage() {
             </Field>
           </div>
         </section>
+
+        {/* Galat simpan/ganti kata sandi (tampil di atas tombol) */}
+        {errors.pw && <div className={s.error}>{errors.pw}</div>}
+        {errors.simpan && <div className={s.error}>{errors.simpan}</div>}
 
         <div className={s.actions}>
           <button type="submit" className={s.btnPrimary}>

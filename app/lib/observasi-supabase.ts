@@ -9,9 +9,11 @@
 // PEMETAAN KOLOM (tipe aplikasi Observasi -> kolom public.observasi):
 //   id            -> id           (uuid; id lama "o-..." -> uuid idStabil)
 //   teacherName   -> teacher_name (teks, untuk tampilan daftar)
-//   teacherId     -> (tidak disimpan ke kolom mana pun) id guru lokal "t1",
-//                                   hanya untuk form & filter lokal. Saat baris
-//                                   DIBACA, dipulihkan dari nama (kosmetik saja).
+//   teacherId     -> app_teacher_id (hanya bila berbentuk uuid; id lokal
+//                                   "t1" TIDAK ditulis karena kolom bisa
+//                                   bertipe uuid — kolom lama dibiarkan). Saat
+//                                   baris DIBACA, id ini dipulihkan bila ada
+//                                   (kosmetik untuk form & filter lokal).
 //   guruAkunId    -> guru_id (uuid): uuid akun guru di Supabase, dipilih
 //                                   EKSPLISIT oleh kepala sekolah dari daftar
 //                                   akun guru (listAkunGuru). TIDAK PERNAH
@@ -48,6 +50,7 @@ import { hitungSkor, loadObservasi, type Jawaban, type Observasi, type StatusObs
 type Row = {
   id: string;
   guru_id: string | null;
+  app_teacher_id?: string | null;
   teacher_name: string | null;
   supervisor_id: string | null;
   tanggal: string | null;
@@ -144,12 +147,17 @@ function petaIdLokal(): Map<string, string> {
 }
 
 // Baris database -> tipe aplikasi.
-// idLokal: nama guru ternormalisasi -> id guru lokal (HANYA kosmetik untuk
-// form/filter lokal; identitas guru yang sah tetap guruAkunId/uuid akun).
+// teacherId dipulihkan dari app_teacher_id bila tersimpan; selain itu dari
+// nama guru ternormalisasi (HANYA kosmetik untuk form/filter lokal; identitas
+// guru yang sah tetap guruAkunId/uuid akun).
 function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
+  const dariKolom =
+    typeof r.app_teacher_id === "string" && r.app_teacher_id && !UUID_RE.test(r.app_teacher_id)
+      ? r.app_teacher_id
+      : "";
   return {
     id: r.id,
-    teacherId: idLokal.get(normNama(r.teacher_name)) ?? "",
+    teacherId: dariKolom || idLokal.get(normNama(r.teacher_name)) || "",
     teacherName: r.teacher_name ?? "",
     guruAkunId: r.guru_id ?? undefined,
     skorTersimpan: r.skor_akhir ?? undefined,
@@ -178,6 +186,9 @@ function keRow(o: Observasi, teacherName: string, ownerId: string) {
     id: idStabil(o.id),
     teacher_name: nama,
     guru_id: akun,
+    // Id aplikasi guru ("t1", ...) hanya ditulis bila berbentuk uuid supaya
+    // tidak merusak cast bila kolom app_teacher_id bertipe uuid di database.
+    app_teacher_id: UUID_RE.test(o.teacherId) ? o.teacherId.toLowerCase() : null,
     supervisor_id: ownerId,
     tanggal: o.date || null,
     mapel: o.mapel,
@@ -228,7 +239,16 @@ export async function listObservasiCloud(): Promise<Observasi[]> {
     .select("*")
     .order("tanggal", { ascending: false })
     .order("created_at", { ascending: false });
-  if (error) throw new Error(pesanDb(error.message));
+  if (error) {
+    // Penyebab asli dicetak ke console; yang tampil ke pengguna versi ramah.
+    console.error("[observasi] gagal membaca daftar", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(pesanDb(error.message));
+  }
   const idLokal = petaIdLokal();
   return ((data ?? []) as unknown as Row[]).map((r) => keObservasi(r, idLokal));
 }

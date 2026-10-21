@@ -84,6 +84,18 @@ export default function Sidebar() {
     };
   }, [router]);
 
+  // Halaman Profil Saya memancarkan "profil:berubah" setelah menyimpan;
+  // muat ulang sesi supaya nama tampilan ikut menyesuaikan.
+  useEffect(() => {
+    function segarkan() {
+      void getSession().then((s) => {
+        if (s) setUser(s);
+      });
+    }
+    window.addEventListener("profil:berubah", segarkan);
+    return () => window.removeEventListener("profil:berubah", segarkan);
+  }, []);
+
   function isActive(href: string) {
     return href === "/dashboard" ? pathname === href : pathname.startsWith(href);
   }
