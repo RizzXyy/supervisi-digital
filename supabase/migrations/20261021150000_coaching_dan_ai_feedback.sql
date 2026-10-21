@@ -10,10 +10,13 @@
 --   * IDEMPOTEN: aman dijalankan berulang.
 --   * NON-DESTRUKTIF: tidak menghapus tabel, kolom, atau baris.
 --
--- URUTAN: file ini boleh dijalankan kapan saja, setelah
--- 20261021140000_skema_kanonik.sql (file itu menyediakan fungsi bantu
--- is_kepala_sekolah / norm_nama / nama_saya yang dipakai kebijakan RLS
--- di bawah).
+-- URUTAN: file ini MANDIRI, boleh dijalankan kapan saja tanpa file lain.
+-- Fungsi bantu is_kepala_sekolah / norm_nama / nama_saya ikut dibuat
+-- ulang di bagian 0 supaya kebijakan RLS di bawah selalu punya fungsi
+-- yang dipanggilnya (tidak bergantung pada migrasi lain).
+--
+--   create or replace tidak menghapus apa pun: kalau fungsi sudah ada,
+--   isinya diganti dengan versi yang sama persis.
 --
 -- PEMETAAN KOLOM (lihat app/lib/coaching-supabase.ts dan
 -- app/lib/ai-feedback-supabase.ts):
@@ -48,6 +51,57 @@
 --     tindakLanjut  -> tindak_lanjut (belum | micro-coaching | rtl)
 --     archived      -> archived      (boolean)
 -- ============================================================
+
+-- ============================================================
+-- 0. FUNGSI BANTU (dipakai oleh kebijakan RLS di bawah)
+--
+-- Tiga fungsi ini harus ada sebelum kebijakan RLS dibuat. create or
+-- replace aman: kalau sudah ada, diganti dengan versi yang sama; kalau
+-- belum, dibuat baru. Tidak menghapus tabel/baris.
+-- ============================================================
+
+-- Penanda kepala sekolah. security definer supaya tidak terhalang RLS
+-- pada tabel profiles. Bila baris profil belum ada, dilanjutkan dengan
+-- peran dari metadata akun.
+create or replace function public.is_kepala_sekolah()
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select p.role = 'kepala_sekolah' from public.profiles p where p.id = auth.uid()),
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'kepala_sekolah',
+    false
+  );
+$$;
+
+revoke execute on function public.is_kepala_sekolah() from public, anon;
+grant execute on function public.is_kepala_sekolah() to authenticated, service_role;
+
+-- Nama tanpa gelar: "Budi Santoso, S.Pd" -> "budi santoso"
+create or replace function public.norm_nama(teks text)
+returns text
+language sql immutable
+as $$
+  select nullif(lower(btrim(split_part(coalesce(teks, ''), ',', 1))), '');
+$$;
+
+grant execute on function public.norm_nama(text) to authenticated, service_role;
+
+-- Nama pemilik akun yang sedang login (aman dari RLS pada profiles).
+create or replace function public.nama_saya()
+returns text
+language sql stable security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select p.name from public.profiles p where p.id = auth.uid()),
+    auth.jwt() -> 'user_metadata' ->> 'full_name'
+  );
+$$;
+
+revoke execute on function public.nama_saya() from public, anon;
+grant execute on function public.nama_saya() to authenticated, service_role;
 
 -- ============================================================
 -- 1. TABEL public.coaching

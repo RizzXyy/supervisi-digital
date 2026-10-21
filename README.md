@@ -53,10 +53,12 @@ keduanya memakai tabel baru:
 supabase/migrations/20261021150000_coaching_dan_ai_feedback.sql
 ```
 
-Jalankan file ini di SQL Editor **setelah** `20261021140000_skema_kanonik.sql`
-(file itu menyediakan fungsi bantu `is_kepala_sekolah`, `norm_nama`, dan
-`nama_saya` yang dipakai kebijakan RLS). Isinya:
+Jalankan file ini di SQL Editor. **File ini mandiri** — fungsi bantu
+`is_kepala_sekolah`, `norm_nama`, dan `nama_saya` yang dipakai kebijakan RLS
+ikut dibuat di dalamnya, jadi tidak harus menjalankan file lain lebih dulu.
+Isinya:
 
+- fungsi bantu RLS (`create or replace`, aman dijalankan berulang);
 - tabel `public.coaching` (sesi micro-coaching) dan `public.ai_feedback`
   (riwayat analisis AI), lengkap dengan indeks, grant, dan kebijakan RLS;
 - CHECK constraint `coaching_status_check` dan
@@ -64,6 +66,10 @@ Jalankan file ini di SQL Editor **setelah** `20261021140000_skema_kanonik.sql`
 
 Data lama yang masih ada di browser dipindahkan otomatis ke database saat
 halaman Micro-Coaching / AI Feedback dibuka pertama kali.
+
+> Catatan: file `20261021140000_skema_kanonik.sql` **belum pernah** dijalankan
+> di project ini (cek: fungsi `norm_nama` masih tidak ada). Jalankan juga file
+> itu kalau bentuk tabel `observasi`/`profiles`/`rpp` masih terasa janggal.
 
 ### Mulai dari nol (semua data aplikasi dihapus)
 
