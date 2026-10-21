@@ -4,6 +4,8 @@
 -- PERINGATAN: file ini MENGHAPUS SELURUH DATA aplikasi di project
 -- Supabase ini:
 --   * tabel public.observasi   (semua observasi)
+--   * tabel public.coaching    (semua sesi micro-coaching)
+--   * tabel public.ai_feedback (semua riwayat AI Feedback)
 --   * tabel public.rpp         (semua dokumen RPP)
 --   * tabel public.profiles    (semua profil)
 --   * file di bucket storage 'rpp-files'
@@ -46,6 +48,8 @@ end $$;
 
 -- ============ 2. Hapus tabel (urutan: yang bergantung lebih dulu) ============
 -- observasi & rpp lebih dulu (mereka merujuk profiles), baru profiles.
+drop table if exists public.ai_feedback cascade;
+drop table if exists public.coaching cascade;
 drop table if exists public.observasi cascade;
 drop table if exists public.rpp cascade;
 drop table if exists public.profiles cascade;

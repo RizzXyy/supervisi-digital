@@ -99,7 +99,7 @@ declare
   t text;
   p record;
 begin
-  foreach t in array array['profiles', 'observasi', 'rpp'] loop
+  foreach t in array array['profiles', 'observasi', 'rpp', 'coaching', 'ai_feedback'] loop
     if to_regclass('public.' || t) is null then
       continue;
     end if;
@@ -584,7 +584,217 @@ create policy "rpp_delete_own"
   using (owner_id = auth.uid());
 
 -- ============================================================
--- 6. STORAGE: BUCKET FILE RPP
+-- 6. TABEL public.coaching & public.ai_feedback
+--
+-- Dua tabel ini dibuat aplikasi INI (belum pernah ada di project ini),
+-- jadi tidak ada benturan dengan aplikasi lain.
+--
+-- PEMETAAN KOLOM:
+--   public.coaching
+--     id -> id (uuid)          teacherId  -> app_teacher_id (id teks "t1")
+--     teacherName -> teacher_name          guruAkunId -> guru_id (uuid)
+--     date -> tanggal (date)   time -> jam (teks "HH:MM")
+--     durasi -> durasi (menit) lokasi -> lokasi
+--     topik -> topik            deskripsi -> deskripsi
+--     agenda -> agenda (jsonb)  status -> status
+--     observasiId -> observasi_id (uuid)   feedback -> feedback (jsonb)
+--
+--   public.ai_feedback
+--     id -> id (uuid)            teacherName -> teacher_name
+--     guruAkunId -> guru_id (uuid)
+--     supervisionId -> supervision_id (id sesi supervisi aplikasi)
+--     sessionDate -> session_date (date)
+--     mapel -> mapel             kelas -> kelas
+--     generatedAt -> generated_at (timestamptz)
+--     ringkasan -> ringkasan     kekuatan -> kekuatan (jsonb)
+--     area -> area (jsonb)       rekomendasi -> rekomendasi (jsonb)
+--     sources -> sources (jsonb) tindakLanjut -> tindak_lanjut
+--     archived -> archived (boolean)
+--
+-- Detail lengkap (termasuk pemetaan kolom) ada di
+-- supabase/migrations/20261021150000_coaching_dan_ai_feedback.sql.
+-- ============================================================
+
+create table if not exists public.coaching (
+  id             uuid primary key,
+  supervisor_id  uuid,
+  guru_id        uuid,
+  app_teacher_id text,
+  teacher_name   text not null default '',
+  tanggal        date,
+  jam            text,
+  durasi         integer not null default 60,
+  lokasi         text not null default '',
+  topik          text not null default '',
+  deskripsi      text not null default '',
+  agenda         jsonb not null default '[]'::jsonb,
+  status         text not null default 'terjadwal',
+  observasi_id   uuid,
+  feedback       jsonb,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+alter table public.coaching add column if not exists supervisor_id uuid;
+alter table public.coaching add column if not exists guru_id uuid;
+alter table public.coaching add column if not exists app_teacher_id text;
+alter table public.coaching add column if not exists teacher_name text not null default '';
+alter table public.coaching add column if not exists tanggal date;
+alter table public.coaching add column if not exists jam text;
+alter table public.coaching add column if not exists durasi integer not null default 60;
+alter table public.coaching add column if not exists lokasi text not null default '';
+alter table public.coaching add column if not exists topik text not null default '';
+alter table public.coaching add column if not exists deskripsi text not null default '';
+alter table public.coaching add column if not exists agenda jsonb not null default '[]'::jsonb;
+alter table public.coaching add column if not exists status text not null default 'terjadwal';
+alter table public.coaching add column if not exists observasi_id uuid;
+alter table public.coaching add column if not exists feedback jsonb;
+alter table public.coaching add column if not exists created_at timestamptz not null default now();
+alter table public.coaching add column if not exists updated_at timestamptz not null default now();
+
+alter table public.coaching drop constraint if exists coaching_status_check;
+alter table public.coaching add constraint coaching_status_check
+  check (status in ('terjadwal', 'menunggu', 'selesai'));
+
+create index if not exists coaching_tanggal_idx on public.coaching (tanggal desc);
+create index if not exists coaching_guru_idx on public.coaching (guru_id);
+
+grant select, insert, update, delete on table public.coaching to authenticated;
+revoke all on table public.coaching from anon;
+
+alter table public.coaching enable row level security;
+
+create table if not exists public.ai_feedback (
+  id             uuid primary key,
+  supervisor_id  uuid,
+  guru_id        uuid,
+  app_teacher_id text,
+  teacher_name   text not null default '',
+  supervision_id text,
+  session_date   date,
+  mapel          text not null default '',
+  kelas          text not null default '',
+  generated_at   timestamptz not null default now(),
+  ringkasan      text not null default '',
+  kekuatan       jsonb not null default '[]'::jsonb,
+  area           jsonb not null default '[]'::jsonb,
+  rekomendasi    jsonb not null default '[]'::jsonb,
+  sources        jsonb not null default '{}'::jsonb,
+  tindak_lanjut  text not null default 'belum',
+  archived       boolean not null default false,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+alter table public.ai_feedback add column if not exists supervisor_id uuid;
+alter table public.ai_feedback add column if not exists guru_id uuid;
+alter table public.ai_feedback add column if not exists app_teacher_id text;
+alter table public.ai_feedback add column if not exists teacher_name text not null default '';
+alter table public.ai_feedback add column if not exists supervision_id text;
+alter table public.ai_feedback add column if not exists session_date date;
+alter table public.ai_feedback add column if not exists mapel text not null default '';
+alter table public.ai_feedback add column if not exists kelas text not null default '';
+alter table public.ai_feedback add column if not exists generated_at timestamptz not null default now();
+alter table public.ai_feedback add column if not exists ringkasan text not null default '';
+alter table public.ai_feedback add column if not exists kekuatan jsonb not null default '[]'::jsonb;
+alter table public.ai_feedback add column if not exists area jsonb not null default '[]'::jsonb;
+alter table public.ai_feedback add column if not exists rekomendasi jsonb not null default '[]'::jsonb;
+alter table public.ai_feedback add column if not exists sources jsonb not null default '{}'::jsonb;
+alter table public.ai_feedback add column if not exists tindak_lanjut text not null default 'belum';
+alter table public.ai_feedback add column if not exists archived boolean not null default false;
+alter table public.ai_feedback add column if not exists created_at timestamptz not null default now();
+alter table public.ai_feedback add column if not exists updated_at timestamptz not null default now();
+
+alter table public.ai_feedback drop constraint if exists ai_feedback_tindak_lanjut_check;
+alter table public.ai_feedback add constraint ai_feedback_tindak_lanjut_check
+  check (tindak_lanjut in ('belum', 'micro-coaching', 'rtl'));
+
+create index if not exists ai_feedback_tanggal_idx on public.ai_feedback (session_date desc);
+create index if not exists ai_feedback_guru_idx on public.ai_feedback (guru_id);
+
+grant select, insert, update, delete on table public.ai_feedback to authenticated;
+revoke all on table public.ai_feedback from anon;
+
+alter table public.ai_feedback enable row level security;
+
+-- Kepala sekolah: semua baris. Guru: baris miliknya (guru_id = uuid akun
+-- guru). Baris tanpa guru_id dicocokkan lewat nama.
+create policy "coaching_select_app"
+  on public.coaching for select to authenticated
+  using (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "coaching_insert_app"
+  on public.coaching for insert to authenticated
+  with check (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "coaching_update_app"
+  on public.coaching for update to authenticated
+  using (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  )
+  with check (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "coaching_delete_app"
+  on public.coaching for delete to authenticated
+  using (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "ai_feedback_select_app"
+  on public.ai_feedback for select to authenticated
+  using (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "ai_feedback_insert_app"
+  on public.ai_feedback for insert to authenticated
+  with check (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "ai_feedback_update_app"
+  on public.ai_feedback for update to authenticated
+  using (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  )
+  with check (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+create policy "ai_feedback_delete_app"
+  on public.ai_feedback for delete to authenticated
+  using (
+    public.is_kepala_sekolah()
+    or guru_id = auth.uid()
+    or (guru_id is null and public.norm_nama(teacher_name) = public.norm_nama(public.nama_saya()))
+  );
+
+-- ============================================================
+-- 7. STORAGE: BUCKET FILE RPP
 -- ============================================================
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -632,7 +842,7 @@ create policy "rpp_files_delete"
   );
 
 -- ============================================================
--- 7. TRIGGER PENDAFTARAN: BUAT BARIS PROFILES OTOMATIS
+-- 8. TRIGGER PENDAFTARAN: BUAT BARIS PROFILES OTOMATIS
 --
 -- DipasANG hanya kalau belum ada trigger apa pun pada auth.users
 -- (skema awal project ini sudah punya trigger; jangan dobel).
@@ -684,7 +894,7 @@ begin
 end $$;
 
 -- ============================================================
--- 8. MUAT ULANG CACHE SKEMA PostgREST
+-- 9. MUAT ULANG CACHE SKEMA PostgREST
 -- Tanpa ini PostgREST masih melaporkan PGRST204 walau kolom sudah ada.
 -- ============================================================
 notify pgrst, 'reload schema';
