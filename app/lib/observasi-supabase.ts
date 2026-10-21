@@ -100,19 +100,34 @@ function idStabil(appId: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-// Daftar akun guru sungguhan dari tabel profiles. Inilah sumber pilihan
-// "Nama Guru" di form: nilai yang dipilih berupa uuid akun, jadi guru_id tidak
-// pernah ditebak dari nama (nama bisa kembar antara akun kepsek dan guru).
-// Kepala sekolah boleh membaca seluruh profiles (kebijakan RLS
-// profiles_select_app); akun sendiri dan akun kepala sekolah dikeluarkan.
-export async function listAkunGuru(): Promise<{ id: string; name: string }[]> {
+// Daftar akun guru sungguhan dari tabel profiles — sumber dropdown "Akun
+// Guru" di form. Kepsek menghubungkan guru yang dipilih ke salah satu akun di
+// sini; yang disimpan ke guru_id selalu uuid akun pilihan itu, TIDAK PERNAH
+// ditebak dari nama (nama bisa kembar antara akun kepsek dan guru).
+// Akun sendiri tidak ditampilkan; utamakan role='guru', dan bila role belum
+// terisi di database tetap tampilkan akun lain supaya daftar tidak kosong.
+export type AkunGuru = { id: string; name: string; email?: string };
+
+export async function listAkunGuru(): Promise<AkunGuru[]> {
   const { data: akun } = await supabase.auth.getUser();
   const sayaId = akun.user?.id ?? "";
-  const { data, error } = await supabase.from("profiles").select("id, name, role");
-  if (error) throw new Error(pesanDb(error.message));
-  return ((data ?? []) as { id: string; name?: string | null; role?: string | null }[])
-    .filter((p) => p.id !== sayaId && p.role !== "kepala_sekolah")
-    .map((p) => ({ id: p.id, name: (p.name ?? "").trim() || "Guru" }))
+
+  // Kolom email di profiles tidak dipastikan ada; kalau tidak ada, ulangi
+  // tanpa email (email hanya pelengkap tampilan untuk membedakan akun kembar).
+  let q = await supabase.from("profiles").select("id, name, role, email");
+  if (q.error) q = await supabase.from("profiles").select("id, name, role");
+  if (q.error) throw new Error(pesanDb(q.error.message));
+  const rows = (q.data ?? []) as {
+    id: string;
+    name?: string | null;
+    role?: string | null;
+    email?: string | null;
+  }[];
+
+  const semua = rows.filter((p) => p.id !== sayaId);
+  const berrole = semua.filter((p) => p.role === "guru");
+  return (berrole.length ? berrole : semua)
+    .map((p) => ({ id: p.id, name: (p.name ?? "").trim() || "Guru", email: p.email ?? "" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -153,15 +168,16 @@ function keObservasi(r: Row, idLokal: Map<string, string>): Observasi {
 }
 
 // Tipe aplikasi -> baris database.
-// guru_id diambil dari o.guruAkunId: uuid akun yang dipilih eksplisit di form.
-// Guru belum punya akun -> null; id teks aplikasi TIDAK PERNAH ditulis ke
-// kolom bertipe uuid, dan nama TIDAK dipakai untuk menebak identitas guru.
+// guru_id diambil dari o.guruAkunId: uuid akun yang dipilih eksplisit di
+// dropdown "Akun Guru". Nilai bukan-uuid dibuang ke null (kolom bertipe uuid);
+// id teks aplikasi TIDAK PERNAH ditulis, dan nama TIDAK dipakai menebak.
 function keRow(o: Observasi, teacherName: string, ownerId: string) {
   const nama = teacherName.trim();
+  const akun = o.guruAkunId && UUID_RE.test(o.guruAkunId) ? o.guruAkunId : null;
   return {
     id: idStabil(o.id),
     teacher_name: nama,
-    guru_id: o.guruAkunId ?? null,
+    guru_id: akun,
     supervisor_id: ownerId,
     tanggal: o.date || null,
     mapel: o.mapel,
