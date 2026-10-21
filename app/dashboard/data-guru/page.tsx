@@ -209,7 +209,7 @@ export default function DataGuruPage() {
       </div>
 
       <div className="dg-table-wrap">
-        <table className="dg-table">
+        <table className="dg-table tabel-kartu">
           <thead>
             <tr>
               <th>Nama</th>
@@ -233,18 +233,18 @@ export default function DataGuruPage() {
                 const k = KATEGORI.find((x) => x.key === kategoriOf(t.score))!;
                 return (
                   <tr key={t.id}>
-                    <td className="dg-name">{t.name}</td>
-                    <td className="dg-nip">{formatNip(t.nip)}</td>
-                    <td>{t.mapel}</td>
-                    <td>{t.kelas}</td>
-                    <td>{t.score ?? "-"}</td>
-                    <td>
+                    <td className="dg-name" data-label="Nama">{t.name}</td>
+                    <td className="dg-nip" data-label="NIP">{formatNip(t.nip)}</td>
+                    <td data-label="Mata Pelajaran">{t.mapel}</td>
+                    <td data-label="Kelas">{t.kelas}</td>
+                    <td data-label="Skor">{t.score ?? "-"}</td>
+                    <td data-label="Kinerja">
                       <span className="dg-pill" style={{ background: k.color }}>
                         {k.label}
                       </span>
                     </td>
                     {canEdit && (
-                      <td className="dg-aksi">
+                      <td className="dg-aksi" data-label="Aksi">
                         <button
                           type="button"
                           className="dg-edit"

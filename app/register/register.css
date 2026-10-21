@@ -150,3 +150,22 @@
 .auth-page .role label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #4b5563; cursor: pointer; }
 .auth-page .role input { width: 18px; height: 18px; margin: 0; accent-color: #1a6cff; }
 .auth-page .auth-form .btn-primary { margin-top: 8px; }
+
+/* ---------- Animasi halus ---------- */
+.auth-page .auth-panel {
+  animation: masukNaik 0.4s var(--ease) both;
+}
+.auth-page .auth-hero {
+  animation: masukHalus 0.5s var(--ease) both;
+}
+.auth-page .btn-primary,
+.auth-page .btn-google {
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform 0.12s var(--ease);
+}
+.auth-page .btn-primary:active,
+.auth-page .btn-google:active {
+  transform: translateY(1px) scale(0.99);
+}
+.auth-page .auth-error {
+  animation: masukNaik var(--dur-2) var(--ease) both;
+}

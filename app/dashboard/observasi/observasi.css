@@ -155,6 +155,92 @@
   .ob-filter { grid-template-columns: 1fr; }
 }
 
+/* ---------- Animasi halus ---------- */
+.ob-card,
+.ob-panel {
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.ob-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+}
+.ob-acc-head {
+  transition: background var(--dur-1) var(--ease);
+}
+.ob-acc-head svg {
+  transition: transform var(--dur-2) var(--ease);
+}
+.ob-pilih label {
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.ob-pilih label:active {
+  transform: scale(0.96);
+}
+.ob-steps li {
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.ob-aksi .dbd-detail-btn,
+.ob-del,
+.ob-trash {
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform 0.12s var(--ease);
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 640px) {
+  .ob-card {
+    padding: 16px 14px 18px;
+  }
+  .ob-panel {
+    padding: 16px 14px 18px;
+  }
+  .ob-steps li {
+    padding: 8px;
+  }
+  .ob-step-label {
+    font-size: 11px;
+  }
+  .ob-pilih label {
+    min-width: 58px;
+    height: 36px;
+    flex: 1;
+  }
+  .ob-butir-catatan {
+    font-size: 16px;
+    height: 40px;
+  }
+  .ob-actions {
+    flex-direction: column-reverse;
+  }
+  .ob-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+  .ob-detail-title h1 {
+    font-size: 19px;
+  }
+  .ob-profile {
+    padding: 14px;
+    gap: 12px;
+  }
+  .ob-skor {
+    width: 100%;
+    margin-left: 0;
+  }
+  .ob-tabs {
+    gap: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ob-tabs button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
 /* Unduh PDF memakai window.print(): sembunyikan sidebar dan tombol */
 @media print {
   .dbd .ob-detail-actions, .ob-crumb { display: none !important; }

@@ -383,7 +383,7 @@ function ListView({
         </h2>
 
         <div className="dg-table-wrap">
-          <table className="dg-table ob-table">
+          <table className="dg-table ob-table tabel-kartu">
             <thead>
               <tr>
                 <th>No</th>
@@ -410,9 +410,9 @@ function ListView({
                   const nama = nameOf(o);
                   return (
                     <tr key={o.id}>
-                      <td>{(hal - 1) * PER_HALAMAN + i + 1}</td>
-                      <td>{formatTanggalPendek(fromDateKey(o.date))}</td>
-                      <td>
+                      <td data-label="No">{(hal - 1) * PER_HALAMAN + i + 1}</td>
+                      <td data-label="Tanggal">{formatTanggalPendek(fromDateKey(o.date))}</td>
+                      <td data-label="Guru">
                         <span className="ob-guru">
                           <span className="ob-avatar" aria-hidden="true">
                             {inisial(nama)}
@@ -420,9 +420,9 @@ function ListView({
                           <span className="dg-name">{nama}</span>
                         </span>
                       </td>
-                      <td>{o.mapel}</td>
-                      <td>{o.kelas}</td>
-                      <td>
+                      <td data-label="Mata Pelajaran">{o.mapel}</td>
+                      <td data-label="Kelas">{o.kelas}</td>
+                      <td data-label="Status">
                         <span className="jd-badge" style={{ background: meta.bg, color: meta.fg }}>
                           {meta.label}
                         </span>
@@ -432,7 +432,7 @@ function ListView({
                           </span>
                         )}
                       </td>
-                      <td className="dg-aksi">
+                      <td className="dg-aksi" data-label="Aksi">
                         <span className="ob-aksi">
                           <button type="button" className="dbd-detail-btn" onClick={() => onOpen(o.id)}>
                             Detail

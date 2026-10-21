@@ -11,6 +11,13 @@
   --bg: #f1f5f9;
   --card: #ffffff;
   --border: #e2e8f0;
+
+  /* ---------- Gerak (animasi) ---------- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-1: 0.16s;
+  --dur-2: 0.24s;
+  --dur-3: 0.34s;
 }
 
 * {
@@ -19,11 +26,35 @@
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  /* Mencegah halaman ikut bergeser ke samping saat ada isi yang lebar.
+     "clip" tidak membuat elemen jadi wadah scroll, jadi position: sticky
+     di sidebar tetap bekerja. */
+  overflow-x: clip;
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Tanda fokus keyboard yang konsisten di seluruh aplikasi */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 a {
@@ -47,7 +78,15 @@ button {
   border: 1px solid transparent;
   font-size: 14px;
   font-weight: 600;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.985);
 }
 .btn-primary {
   background: var(--primary);
@@ -71,6 +110,36 @@ button {
 .btn-sm {
   padding: 6px 12px;
   font-size: 12px;
+}
+
+/* ---------- Gerak dasar ---------- */
+@keyframes masukNaik {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes masukHalus {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes naikNaik {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .link {
@@ -290,6 +359,13 @@ button {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 20px;
+  transition:
+    box-shadow var(--dur-2) var(--ease),
+    transform var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+.card:hover {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.09);
 }
 .card-head {
   display: flex;
@@ -412,5 +488,50 @@ button {
   }
   .main {
     padding: 20px 16px 32px;
+  }
+}
+
+/* ---------- HP kecil ---------- */
+@media (max-width: 560px) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .card {
+    padding: 16px 14px;
+  }
+}
+
+/* Input minimal 16px di perangkat sentuh supaya iOS tidak melakukan
+   zoom otomatis saat keyboard muncul. Di desktop ukuran aslinya tetap. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ---------- Hormati pengaturan "kurangi gerakan" ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Cetak: sisakan bagian technical dari halaman ---------- */
+@media print {
+  .sb,
+  .sb-topbar,
+  .sb-backdrop {
+    display: none !important;
   }
 }

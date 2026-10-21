@@ -95,7 +95,7 @@ export default function HasilObservasiPage() {
             <ClipboardCheck size={18} aria-hidden="true" /> Daftar Hasil Observasi
           </h2>
           <div className="dg-table-wrap">
-            <table className="dg-table ob-table">
+            <table className="dg-table ob-table tabel-kartu">
               <thead>
                 <tr>
                   <th>No</th>
@@ -110,15 +110,15 @@ export default function HasilObservasiPage() {
               <tbody>
                 {hasil.map((o, i) => (
                   <tr key={o.id}>
-                    <td>{i + 1}</td>
-                    <td>{formatTanggalPendek(fromDateKey(o.date))}</td>
-                    <td>{o.mapel}</td>
-                    <td>{o.kelas}</td>
-                    <td>
+                    <td data-label="No">{i + 1}</td>
+                    <td data-label="Tanggal">{formatTanggalPendek(fromDateKey(o.date))}</td>
+                    <td data-label="Mata Pelajaran">{o.mapel}</td>
+                    <td data-label="Kelas">{o.kelas}</td>
+                    <td data-label="Skor">
                       <strong>{o.skorTersimpan ?? hitungSkor(o)}</strong>
                     </td>
-                    <td>{o.observer}</td>
-                    <td className="dg-aksi">
+                    <td data-label="Observer">{o.observer}</td>
+                    <td className="dg-aksi" data-label="Aksi">
                       <button type="button" className="dbd-detail-btn" onClick={() => setDetailId(o.id)}>
                         Lihat
                       </button>

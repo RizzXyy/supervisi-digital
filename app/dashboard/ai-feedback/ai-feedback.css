@@ -233,3 +233,80 @@
   .af-actions { grid-template-columns: minmax(0, 1fr); }
   .af-tab { padding: 10px 10px; font-size: 12.5px; }
 }
+
+/* ---------- Animasi halus ---------- */
+.af-card,
+.af-hist-item,
+.af-about-item,
+.af-box {
+  transition:
+    transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+.af-card:hover,
+.af-hist-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.09);
+}
+.af-btn,
+.af-link-btn,
+.af-tab,
+.af-doc {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.af-btn:active:not(:disabled),
+.af-link-btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+.af-tab {
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 640px) {
+  .af-head h1 { font-size: 20px; }
+  .af-badge {
+    width: 100%;
+    padding: 10px 12px;
+  }
+  .af-badge small { max-width: none; }
+  .af-tabs {
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .af-tabs::-webkit-scrollbar { display: none; }
+  .af-tab {
+    flex: none;
+    white-space: nowrap;
+  }
+  .af-sources {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .af-reco-box {
+    padding: 14px;
+  }
+  .af-hist-item {
+    padding: 14px;
+  }
+  .af-empty {
+    padding: 24px 14px;
+  }
+  .af-btn {
+    min-height: 46px;
+    font-size: 13.5px;
+  }
+  .af-step {
+    flex: 1 1 100%;
+  }
+  .af-doc {
+    padding: 10px;
+  }
+}

@@ -559,7 +559,7 @@ function Halaman({ boot }: { boot: Boot }) {
               <span>Total {filtered.length} RTL</span>
             </div>
             <div className="mc-table-wrap">
-              <table className="mc-table">
+              <table className="mc-table tabel-kartu">
                 <thead>
                   <tr>
                     <th>No</th>
@@ -585,8 +585,8 @@ function Halaman({ boot }: { boot: Boot }) {
                       const nama = nameOf(r.teacherId);
                       return (
                         <tr key={r.id}>
-                          <td>{(halAktif - 1) * PER_HAL + i + 1}</td>
-                          <td>
+                          <td data-label="No">{(halAktif - 1) * PER_HAL + i + 1}</td>
+                          <td data-label="Guru">
                             <span className="mc-guru">
                               <span className="mc-avatar" aria-hidden="true">
                                 {inisial(nama)}
@@ -594,18 +594,18 @@ function Halaman({ boot }: { boot: Boot }) {
                               <span className="dg-name">{nama}</span>
                             </span>
                           </td>
-                          <td>{mapelOf(r.teacherId)}</td>
-                          <td className="rt-target" title={r.target}>
+                          <td data-label="Mata Pelajaran">{mapelOf(r.teacherId)}</td>
+                          <td className="rt-target" title={r.target} data-label="Target Perbaikan">
                             {r.target}
                           </td>
-                          <td>{formatTanggalPendek(fromDateKey(r.tenggat))}</td>
-                          <td>
+                          <td data-label="Tenggat">{formatTanggalPendek(fromDateKey(r.tenggat))}</td>
+                          <td data-label="Progres">
                             <Bar nilai={progres(r)} st={st} />
                           </td>
-                          <td>
+                          <td data-label="Status">
                             <Pill st={st} />
                           </td>
-                          <td className="dg-aksi">
+                          <td className="dg-aksi" data-label="Aksi">
                             <span className="mc-aksi">
                               <button type="button" className="dbd-detail-btn" onClick={() => bukaDetail(r.id)}>
                                 Lihat

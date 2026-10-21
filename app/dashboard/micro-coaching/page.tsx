@@ -550,7 +550,7 @@ function Halaman({ boot }: { boot: Boot }) {
           <span>Total {filtered.length} jadwal</span>
         </div>
         <div className="dg-table-wrap mc-table-wrap">
-          <table className="dg-table mc-table">
+          <table className="dg-table mc-table tabel-kartu">
             <thead>
               <tr>
                 <th>No</th>
@@ -577,8 +577,8 @@ function Halaman({ boot }: { boot: Boot }) {
                   const nama = nameOf(c.teacherId);
                   return (
                     <tr key={c.id} className={c.id === selId ? "is-sel" : ""}>
-                      <td>{i + 1}</td>
-                      <td>
+                      <td data-label="No">{i + 1}</td>
+                      <td data-label="Guru">
                         <span className="mc-guru">
                           <span className="mc-avatar" aria-hidden="true">
                             {inisial(nama)}
@@ -586,18 +586,18 @@ function Halaman({ boot }: { boot: Boot }) {
                           <span className="dg-name">{nama}</span>
                         </span>
                       </td>
-                      <td>{mapelOf(c.teacherId)}</td>
-                      <td>
+                      <td data-label="Mata Pelajaran">{mapelOf(c.teacherId)}</td>
+                      <td data-label="Tanggal & Waktu">
                         {formatTanggalPendek(fromDateKey(c.date))}, {c.time.replace(":", ".")}
                       </td>
-                      <td>{c.topik}</td>
-                      <td>
+                      <td data-label="Topik Coaching">{c.topik}</td>
+                      <td data-label="Status">
                         <span className="mc-pill" style={{ background: meta.bg, color: meta.fg }}>
                           <i style={{ background: meta.dot }} />
                           {meta.label}
                         </span>
                       </td>
-                      <td className="dg-aksi">
+                      <td className="dg-aksi" data-label="Aksi">
                         <span className="mc-aksi">
                           <button type="button" className="dbd-detail-btn" onClick={() => pilih(c.id)}>
                             Detail

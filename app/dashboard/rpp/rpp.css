@@ -505,3 +505,104 @@
     max-width: none;
   }
 }
+
+/* ---------- Animasi halus ---------- */
+.rp-card,
+.rp-stat {
+  transition:
+    transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+.rp-card:hover,
+.rp-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.09);
+}
+.rp-view,
+.rp-reset,
+.rp-more,
+.rp-menu button {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.rp-view:active,
+.rp-reset:active,
+.rp-more:active {
+  transform: translateY(1px) scale(0.96);
+}
+.rp-menu {
+  animation: masukHalus 0.14s var(--ease) both;
+}
+.rp-table tbody tr {
+  transition: background var(--dur-1) var(--ease);
+}
+.rp-drop {
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 640px) {
+  .rp-notice {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .rp-stat {
+    padding: 14px;
+  }
+  .rp-stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .rp-stat-text strong {
+    font-size: 22px;
+  }
+  /* Filter turun jadi satu kolom */
+  .rp-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rp-filters .rp-search {
+    max-width: none;
+  }
+  .rp-field {
+    max-width: none;
+    width: 100%;
+  }
+  .rp-select select {
+    height: 44px;
+    font-size: 16px;
+  }
+  .rp-reset {
+    height: 44px;
+  }
+  /* Tabel tetap bisa digeser dengan jari */
+  .rp-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    margin-inline: -4px;
+    padding-inline: 4px;
+  }
+  .rp-table-wrap::-webkit-scrollbar {
+    height: 8px;
+  }
+  .rp-table-wrap::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background: #cbd5e1;
+  }
+  .rp-doc {
+    min-width: 180px;
+  }
+  .rp-menu {
+    min-width: 180px;
+  }
+  .rp-textarea {
+    font-size: 16px;
+  }
+  .rp-drop {
+    padding: 18px 12px;
+  }
+}

@@ -13,8 +13,10 @@ import {
   FolderKanban,
   House,
   LogOut,
+  Menu,
   MessagesSquare,
   Users,
+  X,
 } from "lucide-react";
 import { getSession, logout, type Role, type Session } from "../lib/auth";
 import "./Sidebar.css";
@@ -62,11 +64,17 @@ const GROUPS: Group[] = [
 
 const ROLE_LABEL: Record<Role, string> = { kepala_sekolah: "Kepala Sekolah", guru: "Guru" };
 
+// Batas layar di bawah ini memakai menu geser (drawer), bukan rel ikon.
+const BILAH_MENU = "(max-width: 900px)";
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<Session | null>(null);
   const [open, setOpen] = useState(false);
+  // Path terakhir yang sudah dirender; dipakai untuk menutup menu
+  // secara otomatis begitu halaman berpindah.
+  const [pathTerakhir, setPathTerakhir] = useState(pathname);
 
   // Cek login. Kalau belum login, kembali ke halaman login.
   useEffect(() => {
@@ -94,6 +102,44 @@ export default function Sidebar() {
     }
     window.addEventListener("profil:berubah", segarkan);
     return () => window.removeEventListener("profil:berubah", segarkan);
+  }, []);
+
+  // Menu yang terbuka harus menutup sendiri kalau pindah halaman.
+  // Penyesuaian dilakukan saat render (bukan di dalam efek) supaya
+  // tidak ada kedipan frame di mana menu masih terbuka di halaman baru.
+  if (pathTerakhir !== pathname) {
+    setPathTerakhir(pathname);
+    setOpen(false);
+  }
+
+  // Di layar kecil: kunci scroll halaman & tutup pakai tombol Escape
+  // selama menu geser terbuka.
+  useEffect(() => {
+    if (!open) return;
+    if (!window.matchMedia(BILAH_MENU).matches) return;
+
+    const overflowLama = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      document.body.style.overflow = overflowLama;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Kalau layar diperbesar ke ukuran desktop, menu geser tidak dipakai lagi.
+  useEffect(() => {
+    const mq = window.matchMedia(BILAH_MENU);
+    function onChange() {
+      if (!mq.matches) setOpen(false);
+    }
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   function isActive(href: string) {
@@ -131,20 +177,36 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className={`sb${open ? " is-open" : ""}`}>
+      {/* Bilah atas khusus layar kecil: tombol buka menu + nama aplikasi. */}
+      <header className="sb-topbar">
         <button
           type="button"
-          className="sb-brand"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Tutup menu" : "Buka menu"}
+          className="sb-burger"
+          onClick={() => setOpen(true)}
+          aria-label="Buka menu"
           aria-expanded={open}
+          aria-controls="sb-menu"
         >
-          <img src="/logo.png" alt="Logo Supervisi Digital" className="sb-logo" />
-          <div className="sb-name">
-            Supervisi <span>Digital</span>
-          </div>
-          <div className="sb-sub">Platform Supervisi &amp; Coaching Digital</div>
+          <Menu size={22} strokeWidth={2} />
         </button>
+        <span className="sb-topbar-title">
+          Supervisi <span>Digital</span>
+        </span>
+      </header>
+
+      <aside className={`sb${open ? " is-open" : ""}`} id="sb-menu">
+        <div className="sb-brandrow">
+          <Link href="/dashboard" className="sb-brand" onClick={() => setOpen(false)}>
+            <img src="/logo.png" alt="Logo Supervisi Digital" className="sb-logo" />
+            <div className="sb-name">
+              Supervisi <span>Digital</span>
+            </div>
+            <div className="sb-sub">Platform Supervisi &amp; Coaching Digital</div>
+          </Link>
+          <button type="button" className="sb-close" onClick={() => setOpen(false)} aria-label="Tutup menu">
+            <X size={20} />
+          </button>
+        </div>
 
         <nav className="sb-nav" aria-label="Menu utama">
           {grouped

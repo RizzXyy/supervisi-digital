@@ -420,3 +420,71 @@
     gap: 4px;
   }
 }
+
+/* ---------- Animasi halus ---------- */
+.lp-stat,
+.lp-note {
+  transition:
+    transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease);
+}
+.lp-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.09);
+}
+.lp-pager button {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.lp-pager button:active {
+  transform: scale(0.94);
+}
+.lp-bar i {
+  transition: width 0.45s var(--ease);
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 640px) {
+  .lp-stat {
+    padding: 14px;
+  }
+  .lp-stat-ic {
+    width: 40px;
+    height: 40px;
+  }
+  .lp-stat strong {
+    font-size: 24px;
+  }
+  .lp-range input {
+    height: 42px;
+    font-size: 16px;
+  }
+  .lp-chart-head {
+    gap: 8px;
+  }
+  .lp-note {
+    padding: 14px;
+  }
+  .lp-pager {
+    justify-content: center;
+  }
+  .lp-pager button {
+    min-width: 34px;
+    height: 34px;
+  }
+  /* Dialog jadi lembar bawah */
+  .dbd-modal.lp-wide {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+  }
+  .lp-det-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

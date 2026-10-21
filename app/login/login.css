@@ -170,3 +170,23 @@
   transition: background 0.15s;
 }
 .auth-page .btn-google:hover { background: #f9fafb; }
+
+/* ---------- Animasi halus ---------- */
+.auth-page .auth-panel {
+  animation: masukNaik 0.4s var(--ease) both;
+}
+.auth-page .auth-hero {
+  animation: masukHalus 0.5s var(--ease) both;
+}
+.auth-page .btn-primary,
+.auth-page .btn-google,
+.auth-page .pw button {
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform 0.12s var(--ease);
+}
+.auth-page .btn-primary:active,
+.auth-page .btn-google:active {
+  transform: translateY(1px) scale(0.99);
+}
+.auth-page .auth-error {
+  animation: masukNaik var(--dur-2) var(--ease) both;
+}

@@ -660,3 +660,119 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Animasi halus ---------- */
+.rt-stat,
+.rt-late button,
+.rt-links a,
+.rt-mode button,
+.rt-pager button,
+.rt-upload {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.rt-late button:hover,
+.rt-links a:hover {
+  transform: translateY(-1px);
+}
+.rt-late button:active,
+.rt-links a:active,
+.rt-upload:active {
+  transform: translateY(1px) scale(0.985);
+}
+.rt-hist-card {
+  transition: box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+}
+.rt-hist-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+}
+.rt-bar i {
+  transition: width 0.45s var(--ease);
+}
+.rt-tabs button {
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 640px) {
+  .rt-mode {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .rt-mode button,
+  .rt-mode select {
+    height: 34px;
+  }
+  .rt-stats {
+    gap: 10px;
+  }
+  .rt-stat {
+    padding: 10px;
+    gap: 8px;
+  }
+  .rt-stat-ic {
+    width: 32px;
+    height: 32px;
+  }
+  .rt-stat strong {
+    font-size: 20px;
+  }
+  .rt-stat small {
+    font-size: 11px;
+  }
+  .rt-rekap {
+    justify-content: center;
+    gap: 14px;
+  }
+  .rt-donut {
+    width: 104px;
+    height: 104px;
+  }
+  .rt-donut > span {
+    width: 70px;
+    height: 70px;
+  }
+  .rt-donut strong {
+    font-size: 20px;
+  }
+  .rt-links a {
+    padding: 12px 10px;
+    font-size: 12.5px;
+  }
+  .rt-pager {
+    justify-content: center;
+  }
+  .rt-pager button {
+    min-width: 34px;
+    height: 34px;
+  }
+  .rt-hist-card header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .rt-bukti li small {
+    display: none;
+  }
+  .rt-upload {
+    width: 100%;
+    height: 44px;
+    justify-content: center;
+  }
+  .rt-block textarea {
+    font-size: 16px;
+  }
+  /* Dialog jadi lembar bawah */
+  .dbd-modal.rt-wide {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+  }
+}

@@ -21,6 +21,9 @@ body:has(.dbd) { background: #fff; }
   padding: 20px 24px 36px;
   background: #fff;
   color: var(--ink);
+  /* Halaman masuk dengan halus: isi muncul sedikit dari bawah, */
+  /* tidak ada elemen yang "loncat" saat pertama dibuka.          */
+  animation: masukNaik 0.34s var(--ease) both;
 }
 .dbd *, .dbd *::before, .dbd *::after { box-sizing: border-box; }
 :where(.dbd) :where(h1, h2, h3, p, ul, dl, dd) { margin: 0; padding: 0; }
@@ -60,9 +63,9 @@ body:has(.dbd) { background: #fff; }
   border-radius: 12px;
   color: inherit;
   text-decoration: none;
-  transition: box-shadow 0.15s;
+  transition: box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
 }
-.dbd-stat:hover { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12); }
+.dbd-stat:hover { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12); transform: translateY(-2px); }
 .dbd-stat:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .dbd-stat-title { grid-column: 1 / -1; font-size: 14px; font-weight: 700; }
 .dbd-stat strong { align-self: end; font-size: 34px; font-weight: 800; line-height: 1; color: var(--ink); }
@@ -89,7 +92,9 @@ body:has(.dbd) { background: #fff; }
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.09);
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
+.dbd-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12); }
 .dbd-card h2 { font-size: 14.5px; font-weight: 700; }
 .dbd-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .dbd-more {
@@ -161,6 +166,7 @@ body:has(.dbd) { background: #fff; }
   display: grid; place-items: center;
   padding: 16px;
   background: rgba(11, 42, 107, 0.35);
+  animation: masukHalus var(--dur-2) var(--ease) both;
 }
 .dbd-modal {
   width: min(420px, 100%);
@@ -168,11 +174,12 @@ body:has(.dbd) { background: #fff; }
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 20px 50px rgba(11, 42, 107, 0.25);
+  animation: naikNaik var(--dur-2) var(--ease) both;
 }
 .dbd-modal-head { display: flex; align-items: center; justify-content: space-between; }
 .dbd-modal-head h3 { font-size: 16px; font-weight: 800; }
-.dbd-modal-head button { display: grid; place-items: center; padding: 6px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
-.dbd-modal-head button:hover { background: #f1f5f9; }
+.dbd-modal-head button { display: grid; place-items: center; padding: 6px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
+.dbd-modal-head button:hover { background: #f1f5f9; color: var(--ink); }
 .dbd-detail { display: grid; gap: 10px; margin-top: 16px; }
 .dbd-detail > div { display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 13px; }
 .dbd-detail dt { color: var(--muted); }
@@ -185,10 +192,13 @@ body:has(.dbd) { background: #fff; }
   border-radius: 10px;
   font: inherit; font-size: 13.5px; font-weight: 600;
   text-decoration: none; cursor: pointer;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform 0.12s var(--ease), box-shadow var(--dur-1) var(--ease);
 }
 .dbd-btn-ghost { border: 1px solid #cbd5e1; background: #fff; color: var(--ink); }
+.dbd-btn-ghost:hover { background: #f8fafc; }
 .dbd-btn-primary { border: 0; background: #1a6cff; color: #fff; }
 .dbd-btn-primary:hover { background: #135bd9; }
+.dbd-btn-ghost:active, .dbd-btn-primary:active { transform: translateY(1px) scale(0.985); }
 
 /* ---------- Halaman Data Guru ---------- */
 .dg-head h1 { font-size: 24px; font-weight: 800; line-height: 1.2; }
@@ -412,6 +422,29 @@ body:has(.dbd) { background: #fff; }
   .jd-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .jd-panel { width: 100%; }
 }
+
+/* Menu geser + bilah atas (lihat Sidebar.css) */
+@media (max-width: 900px) {
+  .dash-shell:has(.dbd) > .main { padding-top: var(--topbar-h); }
+}
+
+/* Tabel lebar: bisa digeser dengan jari, tapi tidak bikin halaman ikut geser */
+.dg-table-wrap,
+.jt-table-wrap,
+.ob-table-wrap {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.dg-table-wrap::-webkit-scrollbar,
+.jt-table-wrap::-webkit-scrollbar,
+.ob-table-wrap::-webkit-scrollbar { height: 8px; }
+.dg-table-wrap::-webkit-scrollbar-thumb,
+.jt-table-wrap::-webkit-scrollbar-thumb,
+.ob-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: #cbd5e1;
+}
+
 @media (max-width: 860px) {
   .dbd { padding: 16px 14px 28px; }
   .dbd-banner { min-height: 112px; padding: 20px; background:
@@ -423,6 +456,27 @@ body:has(.dbd) { background: #fff; }
   .dbd-stat { min-height: 100px; padding: 14px; }
   .dbd-stat strong { font-size: 28px; }
 }
+
+/* Modal jadi "lembar bawah" di HP: lebih enak dipakai satu tangan */
+@media (max-width: 640px) {
+  .dbd-modal-backdrop { align-items: flex-end; padding: 0; }
+  .dbd-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    overflow-y: auto;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    animation: sheetNaik var(--dur-3) var(--ease) both;
+  }
+  .dbd-modal-actions { flex-direction: column-reverse; }
+  .dbd-modal-actions > * { width: 100%; }
+}
+@keyframes sheetNaik {
+  from { opacity: 0.4; transform: translateY(30px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (max-width: 560px) {
   .jd-cal { padding: 14px 12px 16px; }
   .jd-day { width: 34px; height: 34px; font-size: 13px; }
@@ -433,6 +487,95 @@ body:has(.dbd) { background: #fff; }
   .dbd-sched-item { grid-template-columns: minmax(0, 1fr) auto; }
   .dbd-sched-when { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; gap: 10px; }
   .dbd-detail > div { grid-template-columns: 100px 1fr; }
+  .dbd-stats { gap: 10px; }
+  .dbd-stat { min-height: 92px; }
+}
+
+/* =========================================================
+   TABEL JADI KARTU DI LAYAR KECIL
+   ------------------------------------------------------------
+   Di HP tabel yang lebar diubah menjadi daftar kartu: setiap baris
+   menjadi satu kartu dan nama kolomnya tampil di sebelah kiri.
+   Tidak ada lagi tabel yang harus digeser ke samping.
+   ========================================================= */
+@media screen and (max-width: 640px) {
+  .dg-table-wrap:has(.tabel-kartu),
+  .mc-table-wrap:has(.tabel-kartu),
+  .rp-table-wrap:has(.tabel-kartu) {
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+  .tabel-kartu.tabel-kartu {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .tabel-kartu.tabel-kartu thead {
+    display: none;
+  }
+  .tabel-kartu.tabel-kartu tbody {
+    display: block;
+  }
+  .tabel-kartu.tabel-kartu tr {
+    display: block;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.07);
+  }
+  .tabel-kartu.tabel-kartu tr:last-child {
+    margin-bottom: 0;
+  }
+  .tabel-kartu.tabel-kartu td {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border: 0;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .tabel-kartu.tabel-kartu td::before {
+    content: attr(data-label);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  /* Semua isi sel diletakkan di kolom kedua, di sebelah nama kolomnya */
+  .tabel-kartu.tabel-kartu td > * {
+    grid-column: 2;
+  }
+  .tabel-kartu.tabel-kartu td.rt-target {
+    max-width: none;
+    white-space: normal;
+  }
+  .tabel-kartu.tabel-kartu td.dg-aksi,
+  .tabel-kartu.tabel-kartu td.rp-center {
+    width: auto;
+    text-align: left !important;
+    justify-items: start;
+  }
+  .tabel-kartu.tabel-kartu td.dg-empty-row {
+    display: block;
+    padding: 20px 12px !important;
+    text-align: center;
+  }
+  .tabel-kartu.tabel-kartu td.dg-empty-row::before {
+    content: none;
+  }
+  .tabel-kartu.tabel-kartu td .rp-doc {
+    min-width: 0;
+  }
+  .tabel-kartu.tabel-kartu td .mc-guru,
+  .tabel-kartu.tabel-kartu td .ob-guru {
+    min-width: 0;
+  }
 }
 /* Notifikasi */.dbd-notif { display: grid; gap: 10px; margin-top: 14px; }.dbd-notif li { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35; }.dbd-notif li.is-late { background: #fee2e2; color: #b91c1c; }.dbd-notif li.is-soon { background: #ffedd5; color: #c2410c; }.dbd-notif svg { flex-shrink: 0; margin-top: 1px; }
 

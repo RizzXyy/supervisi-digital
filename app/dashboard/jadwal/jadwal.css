@@ -60,8 +60,83 @@
 
 .jt-empty { padding: 28px 14px !important; text-align: center; color: var(--muted); }
 
+/* Petunjuk untuk HP: tabel jadwal masih digeser ke samping */
+.jt-hint { display: none; }
+
 @media (max-width: 640px) {
   .jt-search { flex: 1 1 100%; }
   .jt-add { flex: 1 1 100%; justify-content: center; }
   .jt-chip { flex: 1 1 auto; padding: 0 12px; }
+  .jt-hint {
+    display: block;
+    margin: 18px 0 -8px;
+    font-size: 12px;
+    text-align: center;
+    color: var(--muted);
+  }
+}
+
+/* ---------- Animasi halus ---------- */
+.jt-add,
+.jt-chip,
+.jt-search input {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.jt-add:active,
+.jt-chip:active {
+  transform: translateY(1px) scale(0.97);
+}
+.jt-row td {
+  transition: background var(--dur-1) var(--ease);
+}
+.jt-table tbody tr {
+  transition: background var(--dur-1) var(--ease);
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 640px) {
+  .jt-search input {
+    height: 44px;
+    font-size: 16px;
+  }
+  .jt-add {
+    height: 44px;
+  }
+  .jt-chip {
+    height: 40px;
+  }
+  /* Tabel bisa digeser dengan jari, halaman tidak ikut bergeser.
+     Lebar tabel dikecilkan supaya lebih sedikit yang harus digeser. */
+  .jt-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    margin-inline: -4px;
+    padding-inline: 4px;
+  }
+  .jt-table-wrap::-webkit-scrollbar {
+    height: 8px;
+  }
+  .jt-table-wrap::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background: #cbd5e1;
+  }
+  .jt-table {
+    min-width: 620px;
+    font-size: 13px;
+  }
+  .jt-table th {
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+  .jt-table td {
+    padding: 10px;
+  }
+  .jt-date {
+    width: 130px;
+  }
 }

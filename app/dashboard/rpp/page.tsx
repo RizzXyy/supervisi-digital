@@ -573,7 +573,7 @@ export default function RppPage() {
           </div>
 
           <div className="rp-table-wrap">
-            <table className="rp-table">
+            <table className="rp-table tabel-kartu">
               <thead>
                 <tr>
                   <th>No</th>
@@ -602,8 +602,8 @@ export default function RppPage() {
                     const meta = RPP_STATUS[d.status];
                     return (
                       <tr key={d.id}>
-                        <td className="rp-no">{start + i + 1}</td>
-                        <td>
+                        <td className="rp-no" data-label="No">{start + i + 1}</td>
+                        <td data-label="Judul Dokumen">
                           <div className="rp-doc">
                             <span className="rp-doc-icon">
                               <FileText size={20} aria-hidden="true" />
@@ -619,16 +619,16 @@ export default function RppPage() {
                             </span>
                           </div>
                         </td>
-                        {isSup && <td className="rp-strong">{d.ownerName}</td>}
-                        <td className="rp-strong">{d.mapel}</td>
-                        <td>{d.kelas}</td>
-                        <td className="rp-nowrap">{formatTanggalPendek(new Date(d.uploadedAt))}</td>
-                        <td>
+                        {isSup && <td className="rp-strong" data-label="Guru">{d.ownerName}</td>}
+                        <td className="rp-strong" data-label="Mata Pelajaran">{d.mapel}</td>
+                        <td data-label="Kelas">{d.kelas}</td>
+                        <td className="rp-nowrap" data-label="Tanggal Upload">{formatTanggalPendek(new Date(d.uploadedAt))}</td>
+                        <td data-label="Status">
                           <span className="rp-pill" style={{ background: meta.bg, color: meta.fg }}>
                             {meta.label}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Aksi">
                           <div className="rp-actions">
                             <button type="button" className="rp-view" onClick={() => viewDoc(d)}>
                               <Eye size={16} aria-hidden="true" /> Lihat

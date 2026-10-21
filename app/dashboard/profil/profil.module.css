@@ -246,3 +246,62 @@
     grid-column: 1;
   }
 }
+
+/* ---------- Animasi halus ---------- */
+.panel {
+  transition:
+    transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease);
+}
+.panel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+}
+.btnPrimary,
+.btnGhost,
+.trash {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
+}
+.btnPrimary:active,
+.btnGhost:active,
+.trash:active {
+  transform: translateY(1px) scale(0.97);
+}
+.success,
+.warning {
+  animation: masukNaik var(--dur-2) var(--ease) both;
+}
+
+/* ---------- HP ---------- */
+@media (max-width: 560px) {
+  .title {
+    font-size: 24px;
+  }
+  .panel {
+    padding: 16px 14px;
+  }
+  .avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 22px;
+  }
+  .input {
+    font-size: 16px;
+  }
+  .ajarRow {
+    grid-template-columns: 1fr 44px;
+  }
+  .trash {
+    width: 44px;
+    height: 44px;
+  }
+  .btnPrimary {
+    width: 100%;
+    height: 46px;
+    justify-content: center;
+  }
+}

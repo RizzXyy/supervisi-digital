@@ -482,7 +482,7 @@ function Halaman({ boot }: { boot: Boot }) {
           <span>{baris.length} guru</span>
         </div>
         <div className="mc-table-wrap">
-          <table className="mc-table">
+          <table className="mc-table tabel-kartu">
             <thead>
               <tr>
                 <th>No</th>
@@ -507,8 +507,8 @@ function Halaman({ boot }: { boot: Boot }) {
                   const persen = b.rtlTotal ? Math.round((b.rtlSelesai / b.rtlTotal) * 100) : 0;
                   return (
                     <tr key={b.teacher.id}>
-                      <td>{(cetakSemua ? 0 : (halAktif - 1) * PER_HAL) + i + 1}</td>
-                      <td>
+                      <td data-label="No">{(cetakSemua ? 0 : (halAktif - 1) * PER_HAL) + i + 1}</td>
+                      <td data-label="Nama Guru">
                         <span className="mc-guru">
                           <span className="mc-avatar" aria-hidden="true">
                             {inisial(b.teacher.name)}
@@ -516,10 +516,10 @@ function Halaman({ boot }: { boot: Boot }) {
                           <span className="dg-name">{b.teacher.name}</span>
                         </span>
                       </td>
-                      <td>{b.teacher.mapel}</td>
-                      <td>{b.skorAvg ?? "-"}</td>
-                      <td>{b.jumlahCoaching}</td>
-                      <td>
+                      <td data-label="Mata Pelajaran">{b.teacher.mapel}</td>
+                      <td data-label="Skor Observasi (Avg)">{b.skorAvg ?? "-"}</td>
+                      <td data-label="Jumlah Coaching">{b.jumlahCoaching}</td>
+                      <td data-label="Progres RTL">
                         {b.rtlTotal === 0 ? (
                           "-"
                         ) : (
@@ -533,8 +533,8 @@ function Halaman({ boot }: { boot: Boot }) {
                           </span>
                         )}
                       </td>
-                      <td>{b.status ? <Pill st={b.status} /> : <span className="lp-none">Belum ada RTL</span>}</td>
-                      <td className="dg-aksi lp-noprint">
+                      <td data-label="Status">{b.status ? <Pill st={b.status} /> : <span className="lp-none">Belum ada RTL</span>}</td>
+                      <td className="dg-aksi lp-noprint" data-label="Aksi">
                         <button type="button" className="dbd-detail-btn" onClick={() => setDetailId(b.teacher.id)}>
                           Lihat Detail
                         </button>

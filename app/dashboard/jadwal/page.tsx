@@ -262,6 +262,10 @@ export default function JadwalPage() {
         ))}
       </div>
 
+      <p className="jt-hint" aria-hidden="true">
+        Geser tabel ke samping untuk melihat kolom lainnya.
+      </p>
+
       <div className="jt-table-wrap">
         <table className="jt-table">
           <thead>

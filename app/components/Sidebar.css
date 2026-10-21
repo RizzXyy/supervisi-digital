@@ -1,6 +1,6 @@
 .dash-shell {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -22,9 +22,15 @@
 }
 
 /* ---------- Brand ---------- */
+.sb-brandrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
 .sb-brand {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0 12px;
   border: 0;
   background: none;
@@ -33,16 +39,38 @@
   text-align: center;
   cursor: pointer;
 }
+.sb-brand:hover .sb-name { color: #1a6cff; }
 .sb-logo { display: block; width: 52px; height: auto; margin: 0 auto 6px; }
-.sb-name { font-size: 16px; font-weight: 800; line-height: 1.2; color: #0b2a6b; }
+.sb-name {
+  font-size: 16px; font-weight: 800; line-height: 1.2; color: #0b2a6b;
+  transition: color var(--dur-1) var(--ease);
+}
 .sb-name span { color: #1a6cff; }
-.sb-sub { margin-top: 2px; font-size: 10px; font-weight: 500; color: #0b2a6b; }
+.sb-sub { margin-top: 2px; font-size: 10px; font-weight: 500; color: #7b9193; }
+
+/* Tombol tutup (khusus layar kecil) */
+.sb-close {
+  display: none;
+  place-items: center;
+  flex: none;
+  width: 36px; height: 36px;
+  border: 0; border-radius: 10px;
+  background: #eef3fb; color: #0b2a6b;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), transform 0.12s var(--ease);
+}
+.sb-close:hover { background: #dde8fb; }
+.sb-close:active { transform: scale(0.94); }
+
+/* Bilah atas (khusus layar kecil) */
+.sb-topbar { display: none; }
 
 /* ---------- Menu ---------- */
 .sb-nav {
   display: grid; gap: 4px; align-content: start; flex: 1;
   min-height: 0; margin-top: 32px; padding: 0 20px 0 30px;
   overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .sb-section { display: grid; gap: 4px; }
 .sb-group { margin: 16px 0 2px 4px; font-size: 13px; font-weight: 800; color: #0b2a6b; }
@@ -50,14 +78,19 @@
 .sb-item {
   position: relative;
   display: flex; align-items: center; gap: 12px;
-  height: 38px; padding: 0 12px;
+  height: 40px; padding: 0 12px;
   border-radius: 8px;
   font-size: 13px; font-weight: 700;
   color: #7b9193;
   text-decoration: none;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
 }
-.sb-item:hover { background: #eef3fb; color: #1a6cff; }
+.sb-item svg { flex-shrink: 0; }
+.sb-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-item:hover { background: #eef3fb; color: #1a6cff; transform: translateX(2px); }
 .sb-item:focus-visible { outline: 2px solid #1a6cff; outline-offset: 2px; }
 .sb-item.is-active { background: #dde8fb; color: #2b6fe6; }
 .sb-item.is-active::before {
@@ -65,6 +98,11 @@
   position: absolute; left: -10px; top: 50%;
   width: 3px; height: 20px; transform: translateY(-50%);
   border-radius: 2px; background: #2b6fe6;
+  animation: sbGarisMasuk 0.22s var(--ease) both;
+}
+@keyframes sbGarisMasuk {
+  from { height: 0; opacity: 0; }
+  to { height: 20px; opacity: 1; }
 }
 
 /* ---------- Profil ---------- */
@@ -88,166 +126,171 @@
 .sb-user-name { font-size: 12px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-user-role { font-size: 12px; font-weight: 500; color: #0f172a; }
 .sb-user-school { margin-top: 1px; font-size: 10.5px; font-weight: 500; color: #7b9193; }
-.sb-logout { display: grid; place-items: center; padding: 6px; border: 0; border-radius: 8px; background: none; color: #7b9193; cursor: pointer; }
+.sb-logout {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 34px; height: 34px;
+  border: 0; border-radius: 8px; background: none; color: #7b9193; cursor: pointer;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform 0.12s var(--ease);
+}
 .sb-logout:hover { background: #eef3fb; color: #dc2626; }
+.sb-logout:active { transform: scale(0.94); }
 
-/* ---------- Backdrop (mobile) ---------- */
+/* ---------- Latar gelap (mobile) ---------- */
 .sb-backdrop { display: none; }
 
 /* =========================================================
-   Mobile: SATU sidebar vertikal (rel ikon) dengan animasi halus.
-   Tertutup    = logo + ikon menu berjajar ke bawah (68px)
-   Logo diklik = melebar (260px), teks muncul di samping ikon
-
-   Kunci animasi halus: posisi ikon TIDAK berpindah antara
-   tertutup/terbuka. Yang dianimasikan hanya lebar sidebar dan
-   opacity teks, jadi tidak ada elemen yang "loncat".
+   MOBILE: menu geser (drawer) + bilah atas
+   ------------------------------------------------------------
+   - Layar penuh dipakai isi halaman (tidak ada lagi rel ikon
+     yang memakan 68px layar HP).
+   - Menu muncul dari kiri dengan animasimulur, isi halaman
+     tidak ikut bergeser.
+   - Tombol tutup, backdrop, dan tombol Escape semuanya bekerja.
    ========================================================= */
-@media (max-width: 860px) {
-  /* Konten digeser selebar rel ikon (tetap, tidak ikut melebar) */
+@media (max-width: 900px) {
   .dash-shell {
-    grid-template-columns: 1fr;
-    padding-left: 68px;
+    --topbar-h: calc(56px + env(safe-area-inset-top));
+    grid-template-columns: minmax(0, 1fr);
   }
   .dash-shell > .main { padding: 16px 14px 28px; }
 
+  /* ---------- Bilah atas ---------- */
+  .sb-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 95;
+    height: var(--topbar-h);
+    padding: env(safe-area-inset-top) 12px 0 14px;
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid #e2e8f0;
+    font-family: var(--font-jakarta), "Plus Jakarta Sans", Inter, sans-serif;
+  }
+  .sb-burger {
+    display: grid; place-items: center;
+    width: 40px; height: 40px;
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    background: #fff; color: #0b2a6b;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    -webkit-tap-highlight-color: transparent;
+    transition: background var(--dur-1) var(--ease), transform 0.12s var(--ease), box-shadow var(--dur-1) var(--ease);
+  }
+  .sb-burger:hover { background: #eef3fb; }
+  .sb-burger:active { transform: scale(0.94); }
+  .sb-topbar-title { font-size: 15px; font-weight: 800; color: #0b2a6b; }
+  .sb-topbar-title span { color: #1a6cff; }
+
+  /* Isi halaman turun mengikuti bilah atas */
+  .dash-shell > .main { padding-top: calc(var(--topbar-h) + 12px); }
+
+  /* ---------- Drawer ---------- */
   .sb {
-    --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);
     position: fixed;
     top: 0; left: 0; bottom: 0;
     z-index: 100;
-    width: 68px;
+    width: min(290px, 84vw);
     height: 100vh;
     height: 100dvh;
-    padding: 18px 0 16px;
-    overflow: hidden;
-    will-change: width;
+    padding: calc(14px + env(safe-area-inset-top)) 0 calc(16px + env(safe-area-inset-bottom));
+    background: #f7f9fd;
+    border-right: 1px solid #e2e8f0;
+    box-shadow: none;
+    visibility: hidden;
+    transform: translateX(-102%);
+    will-change: transform;
     -webkit-tap-highlight-color: transparent;
-    transition: width 0.28s var(--sb-ease), box-shadow 0.28s var(--sb-ease);
+    transition:
+      transform var(--dur-3) var(--ease-drawer),
+      box-shadow var(--dur-3) var(--ease),
+      visibility 0s linear var(--dur-3);
   }
   .sb.is-open {
-    width: 260px;
-    box-shadow: 0 10px 40px rgba(11, 42, 107, 0.18);
+    visibility: visible;
+    transform: translateX(0);
+    box-shadow: 14px 0 44px rgba(11, 42, 107, 0.2);
+    transition:
+      transform var(--dur-3) var(--ease-drawer),
+      box-shadow var(--dur-3) var(--ease),
+      visibility 0s;
   }
 
-  /* ---------- Logo ---------- */
-  .sb-brand { padding: 0; -webkit-tap-highlight-color: transparent; }
-  .sb-logo {
-    width: 40px;
-    margin: 0 auto;
-    transition: width 0.28s var(--sb-ease), margin 0.28s var(--sb-ease);
-  }
-  .sb.is-open .sb-logo { width: 52px; margin: 0 auto 6px; }
-
-  /* Nama & subjudul: selalu ada, hanya mengembang + memudar */
-  .sb-name,
-  .sb-sub {
-    display: block;
-    max-height: 0;
-    margin-top: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    opacity: 0;
-    transition: max-height 0.28s var(--sb-ease), margin-top 0.28s var(--sb-ease), opacity 0.15s ease;
-  }
-  .sb.is-open .sb-name { max-height: 24px; opacity: 1; transition-delay: 0s, 0s, 0.1s; }
-  .sb.is-open .sb-sub  { max-height: 16px; margin-top: 2px; opacity: 1; transition-delay: 0s, 0s, 0.1s; }
+  /* Brand di dalam drawer */
+  .sb-brandrow { align-items: center; padding: 0 14px 0 18px; }
+  .sb-brand { padding: 0; text-align: left; }
+  .sb-logo { width: 44px; margin: 0 0 4px; }
+  .sb-name { font-size: 15px; }
+  .sb-sub { display: none; }
+  .sb-close { display: grid; }
 
   /* ---------- Menu ---------- */
   .sb-nav {
-    min-height: 0;
-    margin-top: 20px;
-    padding: 0 12px;      /* tetap sama saat tertutup/terbuka */
+    margin-top: 18px;
+    padding: 0 14px;
     gap: 6px;
     overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
-  .sb-item {
-    height: 44px;
-    padding: 0 12px;      /* ikon selalu di posisi yang sama */
-    gap: 12px;
-    justify-content: flex-start;
-    overflow: hidden;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .sb-item svg { flex-shrink: 0; }
-  .sb-item.is-active::before { display: none; }
-
-  /* Teks menu: dipotong oleh lebar sidebar, lalu memudar masuk */
-  .sb-item span {
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-  .sb.is-open .sb-item span {
-    opacity: 1;
-    transition: opacity 0.2s ease 0.1s;
-  }
-
-  /* ---------- Profil (selalu di dasar sidebar) ---------- */
-  .sb-user {
-    margin-top: auto;
-    padding: 12px 16px 0 16px;   /* avatar tepat di tengah rel 68px */
-    gap: 10px;
-    border-top: 1px solid transparent;
-    transition: border-color 0.28s var(--sb-ease);
-  }
-  .sb.is-open .sb-user { border-top-color: #e2e8f0; }
-
-  .sb-user-info {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-  .sb-logout {
-    flex-shrink: 0;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease, background 0.15s, color 0.15s;
-  }
-  .sb.is-open .sb-user-info {
-    opacity: 1;
-    transition: opacity 0.2s ease 0.1s;
-  }
-  .sb.is-open .sb-logout {
-    opacity: 1;
-    pointer-events: auto;
-    transition: opacity 0.2s ease 0.1s, background 0.15s, color 0.15s;
-  }
-
-  /* ---------- Judul kelompok menu (Dokumen, Evaluasi, Pengembangan) ---------- */
   .sb-section { gap: 6px; }
   .sb-group {
-    max-height: 1px;
-    margin: 8px 18px 4px;
-    overflow: hidden;
-    background: #e2e8f0;      /* tertutup: tampil sebagai garis tipis pemisah */
-    transition: max-height 0.28s var(--sb-ease), margin 0.28s var(--sb-ease), background 0.28s var(--sb-ease);
+    margin: 14px 4px 2px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
   }
-  .sb-group span { display: block; white-space: nowrap; opacity: 0; transition: opacity 0.15s ease; }
-  .sb.is-open .sb-group { max-height: 28px; margin: 14px 16px 2px; background: transparent; }
-  .sb.is-open .sb-group span { opacity: 1; transition: opacity 0.2s ease 0.1s; }
+  .sb-item {
+    height: 46px;                 /* target sentuh yang nyaman */
+    padding: 0 12px;
+    gap: 12px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+  .sb-item:hover { transform: none; }
+  .sb-item.is-active::before { left: -14px; }
 
-  /* ---------- Latar gelap (fade, bukan muncul tiba-tiba) ---------- */
+  /* ---------- Profil ---------- */
+  .sb-user {
+    margin-top: auto;
+    padding: 12px 14px 0 18px;
+    gap: 10px;
+    border-top: 1px solid #e2e8f0;
+  }
+  .sb-logout { width: 40px; height: 40px; }
+
+  /* ---------- Latar gelap ---------- */
   .sb-backdrop {
     display: block;
     position: fixed; inset: 0;
     z-index: 90;
-    background: rgba(11, 42, 107, 0.32);
+    background: rgba(11, 42, 107, 0.35);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
   }
   .sb-backdrop.is-open {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transition: opacity 0.28s ease;
+    transition: opacity var(--dur-2) var(--ease), visibility 0s;
   }
 }
 
 /* Hormati pengaturan "kurangi gerakan" di HP */
-@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
-  .sb, .sb *, .sb-backdrop { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .sb,
+  .sb *,
+  .sb-backdrop,
+  .sb-topbar,
+  .sb-topbar * {
+    animation: none !important;
+    transition: none !important;
+  }
 }
