@@ -78,6 +78,7 @@ export default function ProfilPage() {
   const [pwBaru, setPwBaru] = useState("");
   const [pwKonf, setPwKonf] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const [peringatan, setPeringatan] = useState("");
   const [saved, setSaved] = useState(false);
 
   // Muat profil milik AKUN YANG LOGIN dari tabel public.profiles
@@ -161,6 +162,7 @@ export default function ProfilPage() {
   async function handleSubmit(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     setSaved(false);
+    setPeringatan("");
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length > 0) return;
@@ -189,6 +191,10 @@ export default function ProfilPage() {
       return;
     }
 
+    // Sebagian data mungkin belum tersimpan (kolom baru belum ada di
+    // database) — beri tahu pengguna, tapi simpan tetap dianggap berhasil.
+    setPeringatan(r.peringatan ?? "");
+
     // Beritahu Sidebar (komponen tetap di seluruh dashboard) untuk memuat
     // ulang sesi: nama tampilan ikut menyesuaikan tanpa muat ulang halaman.
     window.dispatchEvent(new Event("profil:berubah"));
@@ -213,6 +219,7 @@ export default function ProfilPage() {
             <CircleCheck size={18} /> Perubahan berhasil disimpan.
           </div>
         )}
+        {peringatan && <div className={s.warning}>{peringatan}</div>}
 
         {/* Data diri */}
         <section className={s.panel}>

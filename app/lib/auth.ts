@@ -108,6 +108,20 @@ export type ProfilSaya = {
   ajaran: Ajaran[];
 };
 
+// Kolom profil yang dibaca berurutan dari paling lengkap ke palingminimal.
+// Kalau ada kolom yang belum ada di database (migrasi belum dijalankan),
+// ulangi dengan daftar kolom yang lebih pendek.
+//
+// PENTING: jangan langsung lompat ke "id, name, role" saja — kolom `nip`
+// harus selalu ikut. Kalau `nip` tidak terbaca, form menampilkan NIP kosong
+// dan penyimpanan berikutnya akan menimpanya dengan null (NIP yang sudah
+// tersimpan hilang).
+const PILIH_PROFIL = [
+  "id, name, role, nip, ajaran, email",
+  "id, name, role, nip",
+  "id, name, role",
+];
+
 // Baca profil milik akun yang login. Kalau kolom tambahan (nip/ajaran/email)
 // belum ada di database, ulangi tanpa kolom itu supaya halaman tetap terbuka
 // (galat aslinya dicetak ke console).
@@ -121,11 +135,16 @@ export async function getProfilSaya(): Promise<ProfilSaya | null> {
   const meta = user.user_metadata ?? {};
   let q = await supabase
     .from("profiles")
-    .select("id, name, role, nip, ajaran, email")
+    .select(PILIH_PROFIL[0])
     .eq("id", user.id)
     .maybeSingle();
-  if (q.error)
-    q = await supabase.from("profiles").select("id, name, role").eq("id", user.id).maybeSingle();
+  for (let i = 1; i < PILIH_PROFIL.length && q.error; i++) {
+    q = await supabase
+      .from("profiles")
+      .select(PILIH_PROFIL[i])
+      .eq("id", user.id)
+      .maybeSingle();
+  }
   if (q.error) {
     console.error("[profil] gagal membaca baris profiles, pakai metadata akun", q.error);
     return {
@@ -151,46 +170,102 @@ export async function getProfilSaya(): Promise<ProfilSaya | null> {
   };
 }
 
+// Kolom yang boleh SEAJAHNYA belum ada di database (migrasi profil belum
+// dijalankan): `email` & `ajaran`. `nip`/`name`/`role` selalu dipakai kode.
+const KOLOM_PROFIL_OPTIONAL = ["email", "ajaran"];
+
+// Ambil nama kolom yang hilang dari pesan galat PostgREST atau Postgres:
+//   PGRST204 "Could not find the 'ajaran' column of 'profiles' in the schema cache"
+//   42703    "column profiles.ajaran does not exist"
+function kolomHilang(message: string): string | null {
+  return (
+    message.match(/Could not find the '([^']+)' column/i)?.[1] ??
+    message.match(/column\s+(?:\w+\.)?"?(\w+)"?\s+does not exist/i)?.[1] ??
+    null
+  );
+}
+
+// Pesan galat yang menyebut penyebab sebenarnya (kolom/tabel yang hilang),
+// bukan pesan umum. Tanpa ini semua kegagalan tampil sama saja dan pengguna
+// diarahkan ke file migrasi yang salah.
+function pesanSimpanProfil(message: string): string {
+  if (/row-level security|permission denied/i.test(message))
+    return "Anda tidak punya izin untuk menyimpan profil.";
+  const kolom = kolomHilang(message);
+  if (kolom)
+    return `Kolom '${kolom}' belum ada di tabel profiles. Jalankan supabase/migrations/20261021120000_profil_kolom_hilang.sql di SQL Editor Supabase (project yang sama), lalu muat ulang halaman.`;
+  if (/Could not find the table '([^']+)'/i.test(message))
+    return "Tabel profiles belum ada di database. Jalankan file migrasi di supabase/migrations lewat SQL Editor Supabase, lalu muat ulang halaman.";
+  if (/does not exist/i.test(message))
+    return "Struktur database belum sesuai dengan kode. Jalankan file migrasi terbaru di supabase/migrations lewat SQL Editor Supabase, lalu muat ulang halaman.";
+  return message;
+}
+
 // Simpan nama/NIP/ajaran HANYA ke baris milik sendiri (upsert id = auth.uid;
 // kebijakan RLS profiles_insert_own & profiles_update_own menjaminnya).
 // Email TIDAK disimpan dari form: nilainya selalu disinkronkan dari akun Auth
 // supaya tidak ada dua sumber kebenaran untuk email.
+//
+// Kalau kolom opsional belum ada di database, simpan ulang TANPA kolom itu
+// (satu per satu) supaya nama/NIP/peran tetap tersimpan; halaman menampilkan
+// peringatan bahwa sebagian data belum bisa disimpan.
 export async function simpanProfilSaya(input: {
   name: string;
   nip: string;
   ajaran: Ajaran[];
   role: Role;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; peringatan?: string }> {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sesi login tidak ditemukan. Silakan login ulang." };
 
-  const { error } = await supabase.from("profiles").upsert({
+  const baris: Record<string, unknown> = {
     id: user.id,
     name: input.name,
     email: user.email ?? null,
     nip: input.nip || null,
     ajaran: input.ajaran,
     role: input.role,
-  });
-  if (error) {
+  };
+
+  const tanpaKolom: string[] = [];
+  // Maksimal percobaan = 1 (penuh) + jumlah kolom opsional.
+  for (let coba = 0; coba <= KOLOM_PROFIL_OPTIONAL.length; coba++) {
+    const { error } = await supabase.from("profiles").upsert(baris);
+
+    if (!error) {
+      if (!tanpaKolom.length) return { ok: true };
+      return {
+        ok: true,
+        peringatan: `Kolom ${tanpaKolom
+          .map((k) => `'${k}'`)
+          .join(", ")} belum ada di tabel profiles, jadi belum tersimpan. Jalankan supabase/migrations/20261021120000_profil_kolom_hilang.sql di SQL Editor Supabase, lalu simpan lagi.`,
+      };
+    }
+
     console.error("[profil] simpan gagal", {
       code: error.code,
       message: error.message,
       details: error.details,
       hint: error.hint,
     });
-    if (/row-level security|permission denied/i.test(error.message))
-      return { ok: false, error: "Anda tidak punya izin untuk menyimpan profil." };
-    return {
-      ok: false,
-      error:
-        "Gagal menyimpan profil. Jalankan supabase/migrations/20261021090000_profil_per_akun.sql di SQL Editor Supabase, lalu muat ulang halaman.",
-    };
+
+    const kolom = kolomHilang(error.message);
+    if (
+      !kolom ||
+      !KOLOM_PROFIL_OPTIONAL.includes(kolom) ||
+      tanpaKolom.includes(kolom)
+    )
+      return { ok: false, error: pesanSimpanProfil(error.message) };
+
+    // Kolom opsional ini belum ada di database: buang dari payload lalu ulangi.
+    tanpaKolom.push(kolom);
+    delete baris[kolom];
   }
-  return { ok: true };
+
+  return { ok: false, error: "Gagal menyimpan profil. Coba lagi." };
 }
 
 // Ganti kata sandi lewat Supabase Auth. Kata sandi lama diverifikasi dulu
