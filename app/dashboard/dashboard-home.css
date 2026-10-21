@@ -423,11 +423,6 @@ body:has(.dbd) { background: #fff; }
   .jd-panel { width: 100%; }
 }
 
-/* Menu geser + bilah atas (lihat Sidebar.css) */
-@media (max-width: 900px) {
-  .dash-shell:has(.dbd) > .main { padding-top: var(--topbar-h); }
-}
-
 /* Tabel lebar: bisa digeser dengan jari, tapi tidak bikin halaman ikut geser */
 .dg-table-wrap,
 .jt-table-wrap,

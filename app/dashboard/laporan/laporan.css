@@ -48,6 +48,15 @@
   font-style: normal;
   color: var(--mc-muted);
 }
+/* Di layar sangat sempit, dua tanggal ditumpuk agar tidak terpotong. */
+@media (max-width: 480px) {
+  .lp-range {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .lp-range em { display: none; }
+}
 
 /* ---------- Kartu ringkasan ---------- */
 .lp-stats {

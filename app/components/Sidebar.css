@@ -12,7 +12,7 @@
 /* Sidebar memakai position: fixed supaya benar-benar diam saat isi halaman
    digulir (position: sticky bisa gagal bila ada leluhur ber-overflow: clip).
    Karena keluar dari alur grid, isi halaman dipatok ke kolom kedua. */
-@media (min-width: 901px) {
+@media (min-width: 861px) {
   .dash-shell > .main { grid-column: 2; }
 }
 
@@ -34,15 +34,8 @@
 }
 
 /* ---------- Brand ---------- */
-.sb-brandrow {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
 .sb-brand {
   display: block;
-  flex: 1;
-  min-width: 0;
   padding: 0 12px;
   border: 0;
   background: none;
@@ -59,23 +52,6 @@
 }
 .sb-name span { color: #1a6cff; }
 .sb-sub { margin-top: 2px; font-size: 10px; font-weight: 500; color: #7b9193; }
-
-/* Tombol tutup (khusus layar kecil) */
-.sb-close {
-  display: none;
-  place-items: center;
-  flex: none;
-  width: 36px; height: 36px;
-  border: 0; border-radius: 10px;
-  background: #eef3fb; color: #0b2a6b;
-  cursor: pointer;
-  transition: background var(--dur-1) var(--ease), transform 0.12s var(--ease);
-}
-.sb-close:hover { background: #dde8fb; }
-.sb-close:active { transform: scale(0.94); }
-
-/* Bilah atas (khusus layar kecil) */
-.sb-topbar { display: none; }
 
 /* ---------- Menu ---------- */
 .sb-nav {
@@ -151,136 +127,161 @@
 .sb-backdrop { display: none; }
 
 /* =========================================================
-   MOBILE: menu geser (drawer) + bilah atas
-   ------------------------------------------------------------
-   - Layar penuh dipakai isi halaman (tidak ada lagi rel ikon
-     yang memakan 68px layar HP).
-   - Menu muncul dari kiri dengan animasimulur, isi halaman
-     tidak ikut bergeser.
-   - Tombol tutup, backdrop, dan tombol Escape semuanya bekerja.
+   MOBILE: SATU sidebar vertikal (rel ikon) dengan animasi halus.
+   Tertutup     = logo + ikon menu berjajar ke bawah (68px)
+   Logo diketuk = melebar (260px), teks muncul di samping ikon
+
+   Kunci animasi halus: posisi ikon TIDAK berpindah antara
+   tertutup/terbuka. Yang dianimasikan hanya lebar sidebar dan
+   opacity teks, jadi tidak ada elemen yang "loncat".
    ========================================================= */
-@media (max-width: 900px) {
+@media (max-width: 860px) {
+  /* Konten digeser selebar rel ikon (tetap, tidak ikut melebar) */
   .dash-shell {
-    --topbar-h: calc(56px + env(safe-area-inset-top));
     grid-template-columns: minmax(0, 1fr);
+    padding-left: 68px;
   }
   .dash-shell > .main { padding: 16px 14px 28px; }
 
-  /* ---------- Bilah atas ---------- */
-  .sb-topbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 95;
-    height: var(--topbar-h);
-    padding: env(safe-area-inset-top) 12px 0 14px;
-    background: rgba(255, 255, 255, 0.88);
-    -webkit-backdrop-filter: saturate(180%) blur(12px);
-    backdrop-filter: saturate(180%) blur(12px);
-    border-bottom: 1px solid #e2e8f0;
-    font-family: var(--font-jakarta), "Plus Jakarta Sans", Inter, sans-serif;
-  }
-  .sb-burger {
-    display: grid; place-items: center;
-    width: 40px; height: 40px;
-    border: 1px solid #e2e8f0; border-radius: 10px;
-    background: #fff; color: #0b2a6b;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-    -webkit-tap-highlight-color: transparent;
-    transition: background var(--dur-1) var(--ease), transform 0.12s var(--ease), box-shadow var(--dur-1) var(--ease);
-  }
-  .sb-burger:hover { background: #eef3fb; }
-  .sb-burger:active { transform: scale(0.94); }
-  .sb-topbar-title { font-size: 15px; font-weight: 800; color: #0b2a6b; }
-  .sb-topbar-title span { color: #1a6cff; }
-
-  /* Isi halaman turun mengikuti bilah atas */
-  .dash-shell > .main { padding-top: calc(var(--topbar-h) + 12px); }
-
-  /* ---------- Drawer ---------- */
   .sb {
     position: fixed;
     top: 0; left: 0; bottom: 0;
     z-index: 100;
-    width: min(290px, 84vw);
+    width: 68px;
     height: 100vh;
     height: 100dvh;
-    padding: calc(14px + env(safe-area-inset-top)) 0 calc(16px + env(safe-area-inset-bottom));
-    background: #f7f9fd;
-    border-right: 1px solid #e2e8f0;
-    box-shadow: none;
-    visibility: hidden;
-    transform: translateX(-102%);
-    will-change: transform;
+    padding: 18px 0 16px;
+    overflow: hidden;
+    will-change: width;
     -webkit-tap-highlight-color: transparent;
-    transition:
-      transform var(--dur-3) var(--ease-drawer),
-      box-shadow var(--dur-3) var(--ease),
-      visibility 0s linear var(--dur-3);
+    transition: width var(--dur-3) var(--ease), box-shadow var(--dur-3) var(--ease);
   }
   .sb.is-open {
-    visibility: visible;
-    transform: translateX(0);
-    box-shadow: 14px 0 44px rgba(11, 42, 107, 0.2);
-    transition:
-      transform var(--dur-3) var(--ease-drawer),
-      box-shadow var(--dur-3) var(--ease),
-      visibility 0s;
+    width: 260px;
+    box-shadow: 0 10px 40px rgba(11, 42, 107, 0.18);
   }
 
-  /* Brand di dalam drawer */
-  .sb-brandrow { align-items: center; padding: 0 14px 0 18px; }
-  .sb-brand { padding: 0; text-align: left; }
-  .sb-logo { width: 44px; margin: 0 0 4px; }
-  .sb-name { font-size: 15px; }
-  .sb-sub { display: none; }
-  .sb-close { display: grid; }
+  /* ---------- Logo ---------- */
+  .sb-brand { padding: 0; -webkit-tap-highlight-color: transparent; }
+  .sb-logo {
+    width: 40px;
+    margin: 0 auto;
+    transition: width var(--dur-3) var(--ease), margin var(--dur-3) var(--ease);
+  }
+  .sb.is-open .sb-logo { width: 52px; margin: 0 auto 6px; }
+
+  /* Nama & subjudul: selalu ada, hanya mengembang + memudar */
+  .sb-name,
+  .sb-sub {
+    display: block;
+    max-height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    transition:
+      max-height var(--dur-3) var(--ease),
+      margin-top var(--dur-3) var(--ease),
+      opacity var(--dur-1) ease;
+  }
+  .sb.is-open .sb-name { max-height: 24px; opacity: 1; transition-delay: 0s, 0s, 0.1s; }
+  .sb.is-open .sb-sub  { max-height: 16px; margin-top: 2px; opacity: 1; transition-delay: 0s, 0s, 0.1s; }
 
   /* ---------- Menu ---------- */
   .sb-nav {
-    margin-top: 18px;
-    padding: 0 14px;
+    min-height: 0;
+    margin-top: 20px;
+    padding: 0 12px;      /* tetap sama saat tertutup/terbuka */
     gap: 6px;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
-  .sb-section { gap: 6px; }
-  .sb-group {
-    margin: 14px 4px 2px;
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #94a3b8;
-  }
   .sb-item {
-    height: 46px;                 /* target sentuh yang nyaman */
-    padding: 0 12px;
+    height: 44px;                 /* target sentuh yang nyaman */
+    padding: 0 12px;              /* ikon selalu di posisi yang sama */
     gap: 12px;
-    font-size: 14px;
+    justify-content: flex-start;
+    overflow: hidden;
+    white-space: nowrap;
     border-radius: 10px;
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
   }
   .sb-item:hover { transform: none; }
-  .sb-item.is-active::before { left: -14px; }
+  .sb-item svg { flex-shrink: 0; }
+  .sb-item.is-active::before { display: none; }
 
-  /* ---------- Profil ---------- */
+  /* Teks menu: dipotong oleh lebar sidebar, lalu memudar masuk */
+  .sb-item span {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity var(--dur-1) ease;
+  }
+  .sb.is-open .sb-item span {
+    opacity: 1;
+    transition: opacity var(--dur-1) ease 0.1s;
+  }
+
+  /* ---------- Profil (selalu di dasar sidebar) ---------- */
   .sb-user {
     margin-top: auto;
-    padding: 12px 14px 0 18px;
+    padding: 12px 16px 0 16px;   /* avatar tepat di tengah rel 68px */
     gap: 10px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid transparent;
+    transition: border-color var(--dur-3) var(--ease);
   }
-  .sb-logout { width: 40px; height: 40px; }
+  .sb.is-open .sb-user { border-top-color: #e2e8f0; }
 
-  /* ---------- Latar gelap ---------- */
+  .sb-user-info {
+    opacity: 0;
+    transition: opacity var(--dur-1) ease;
+  }
+  .sb-logout {
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity var(--dur-1) ease,
+      background var(--dur-1) var(--ease),
+      color var(--dur-1) var(--ease);
+  }
+  .sb.is-open .sb-user-info {
+    opacity: 1;
+    transition: opacity var(--dur-1) ease 0.1s;
+  }
+  .sb.is-open .sb-logout {
+    opacity: 1;
+    pointer-events: auto;
+    transition:
+      opacity var(--dur-1) ease 0.1s,
+      background var(--dur-1) var(--ease),
+      color var(--dur-1) var(--ease);
+  }
+
+  /* ---------- Judul kelompok menu (Dokumen, Evaluasi, Pengembangan) ---------- */
+  .sb-section { gap: 6px; }
+  .sb-group {
+    max-height: 1px;
+    margin: 8px 18px 4px;
+    overflow: hidden;
+    background: #e2e8f0;      /* tertutup: tampil sebagai garis tipis pemisah */
+    transition:
+      max-height var(--dur-3) var(--ease),
+      margin var(--dur-3) var(--ease),
+      background var(--dur-3) var(--ease);
+  }
+  .sb-group span { display: block; white-space: nowrap; opacity: 0; transition: opacity var(--dur-1) ease; }
+  .sb.is-open .sb-group { max-height: 28px; margin: 14px 16px 2px; background: transparent; }
+  .sb.is-open .sb-group span { opacity: 1; transition: opacity var(--dur-1) ease 0.1s; }
+
+  /* ---------- Latar gelap (fade, bukan muncul tiba-tiba) ---------- */
   .sb-backdrop {
     display: block;
     position: fixed; inset: 0;
     z-index: 90;
-    background: rgba(11, 42, 107, 0.35);
+    background: rgba(11, 42, 107, 0.32);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -296,12 +297,10 @@
 }
 
 /* Hormati pengaturan "kurangi gerakan" di HP */
-@media (prefers-reduced-motion: reduce) {
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
   .sb,
   .sb *,
-  .sb-backdrop,
-  .sb-topbar,
-  .sb-topbar * {
+  .sb-backdrop {
     animation: none !important;
     transition: none !important;
   }

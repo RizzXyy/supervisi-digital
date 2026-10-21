@@ -530,7 +530,6 @@ button {
 /* ---------- Cetak: sisakan bagian technical dari halaman ---------- */
 @media print {
   .sb,
-  .sb-topbar,
   .sb-backdrop {
     display: none !important;
   }

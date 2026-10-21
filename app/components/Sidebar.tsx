@@ -13,10 +13,8 @@ import {
   FolderKanban,
   House,
   LogOut,
-  Menu,
   MessagesSquare,
   Users,
-  X,
 } from "lucide-react";
 import { getSession, logout, type Role, type Session } from "../lib/auth";
 import "./Sidebar.css";
@@ -64,8 +62,9 @@ const GROUPS: Group[] = [
 
 const ROLE_LABEL: Record<Role, string> = { kepala_sekolah: "Kepala Sekolah", guru: "Guru" };
 
-// Batas layar di bawah ini memakai menu geser (drawer), bukan rel ikon.
-const BILAH_MENU = "(max-width: 900px)";
+// Batas layar di bawah ini sidebar berubah jadi rel ikon 68px yang bisa
+// melebar saat logo diketuk (lihat Sidebar.css).
+const BILAH_MENU = "(max-width: 860px)";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -113,7 +112,7 @@ export default function Sidebar() {
   }
 
   // Di layar kecil: kunci scroll halaman & tutup pakai tombol Escape
-  // selama menu geser terbuka.
+  // selama rel ikon sedang melebar.
   useEffect(() => {
     if (!open) return;
     if (!window.matchMedia(BILAH_MENU).matches) return;
@@ -132,7 +131,7 @@ export default function Sidebar() {
     };
   }, [open]);
 
-  // Kalau layar diperbesar ke ukuran desktop, menu geser tidak dipakai lagi.
+  // Kalau layar diperbesar ke ukuran desktop, rel ikon tidak dipakai lagi.
   useEffect(() => {
     const mq = window.matchMedia(BILAH_MENU);
     function onChange() {
@@ -177,36 +176,29 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Bilah atas khusus layar kecil: tombol buka menu + nama aplikasi. */}
-      <header className="sb-topbar">
-        <button
-          type="button"
-          className="sb-burger"
-          onClick={() => setOpen(true)}
-          aria-label="Buka menu"
+      <aside className={`sb${open ? " is-open" : ""}`}>
+        {/* Di layar kecil logo berfungsi membuka/menutup rel ikon;
+            di desktop logo menuju dashboard seperti biasa. */}
+        <Link
+          href="/dashboard"
+          className="sb-brand"
+          title="Supervisi Digital"
           aria-expanded={open}
-          aria-controls="sb-menu"
+          onClick={(e) => {
+            if (window.matchMedia(BILAH_MENU).matches) {
+              e.preventDefault();
+              setOpen((v) => !v);
+            } else {
+              setOpen(false);
+            }
+          }}
         >
-          <Menu size={22} strokeWidth={2} />
-        </button>
-        <span className="sb-topbar-title">
-          Supervisi <span>Digital</span>
-        </span>
-      </header>
-
-      <aside className={`sb${open ? " is-open" : ""}`} id="sb-menu">
-        <div className="sb-brandrow">
-          <Link href="/dashboard" className="sb-brand" onClick={() => setOpen(false)}>
-            <img src="/logo.png" alt="Logo Supervisi Digital" className="sb-logo" />
-            <div className="sb-name">
-              Supervisi <span>Digital</span>
-            </div>
-            <div className="sb-sub">Platform Supervisi &amp; Coaching Digital</div>
-          </Link>
-          <button type="button" className="sb-close" onClick={() => setOpen(false)} aria-label="Tutup menu">
-            <X size={20} />
-          </button>
-        </div>
+          <img src="/logo.png" alt="Logo Supervisi Digital" className="sb-logo" />
+          <div className="sb-name">
+            Supervisi <span>Digital</span>
+          </div>
+          <div className="sb-sub">Platform Supervisi &amp; Coaching Digital</div>
+        </Link>
 
         <nav className="sb-nav" aria-label="Menu utama">
           {grouped

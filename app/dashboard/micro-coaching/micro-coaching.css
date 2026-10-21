@@ -157,6 +157,16 @@
   font-style: normal;
   color: var(--mc-muted);
 }
+/* Di layar sangat sempit (ditambah rel ikon 68px), dua tanggal ditumpuk
+   supaya angka tanggal tidak terpotong. */
+@media (max-width: 480px) {
+  .mc-range > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .mc-range em { display: none; }
+}
 .mc-reset {
   height: 40px;
 }
