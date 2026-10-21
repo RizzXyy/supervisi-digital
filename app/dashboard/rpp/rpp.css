@@ -27,10 +27,11 @@
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 18px;
+  padding: 16px 18px;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.07);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -106,22 +107,21 @@
 
 /* ---------- Pencarian & filter ---------- */
 .rp-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 14px;
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 190px) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .rp-filters .rp-search {
-  flex: 1 1 100%;
   width: 100%;
   max-width: none;
 }
 .rp-field {
   display: grid;
   gap: 6px;
-  flex: 1 1 180px;
-  max-width: 260px;
+  min-width: 0;
+  max-width: none;
 }
 .rp-field > span:first-child {
   font-size: 13px;
@@ -179,41 +179,44 @@
 .rp-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 20px;
+  gap: 16px;
   align-items: start;
 }
 .rp-side {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 .rp-card {
-  padding: 20px;
+  padding: 16px 18px 18px;
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.09);
 }
 .rp-card h2 {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: 14.5px;
+  font-weight: 700;
   color: #0f172a;
 }
 .rp-card h2 svg {
-  color: #2563eb;
+  width: 18px;
+  height: 18px;
+  color: #1a6cff;
 }
 .rp-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .rp-card-head span {
-  font-size: 13px;
-  color: #64748b;
+  font-size: 12.5px;
+  color: #7b9193;
 }
 
 /* ---------- Tabel ---------- */
@@ -223,26 +226,21 @@
 .rp-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 .rp-table th {
-  padding: 12px 14px;
-  background: #f4f7fd;
-  color: #475569;
+  padding: 10px 12px;
+  background: transparent;
+  color: #7b9193;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
   white-space: nowrap;
-}
-.rp-table th:first-child {
-  border-radius: 10px 0 0 10px;
-}
-.rp-table th:last-child {
-  border-radius: 0 10px 10px 0;
+  border-bottom: 1px solid #e6edf3;
 }
 .rp-table td {
-  padding: 14px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 12px;
+  border-bottom: 1px solid #eef2f7;
   vertical-align: middle;
   color: #334155;
 }
@@ -265,15 +263,15 @@
 .rp-doc {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 220px;
+  gap: 10px;
+  min-width: 0;
 }
 .rp-doc-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   background: #eff6ff;
-  color: #2563eb;
+  color: #1a6cff;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -284,8 +282,9 @@
   min-width: 0;
 }
 .rp-doc-text strong {
-  font-size: 14px;
+  font-size: 13.5px;
   color: #0f172a;
+  overflow-wrap: anywhere;
 }
 .rp-doc-text small {
   font-size: 12px;
@@ -348,17 +347,41 @@
 }
 .rp-info p {
   margin: 10px 0 0;
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.6;
-  color: #334155;
+  color: #475569;
 }
+/* Langkah panduan: nomor bulat sendiri supaya teks rata dengan judul kartu */
 .rp-steps {
-  margin: 14px 0 0 20px;
+  counter-reset: rp-step;
   display: grid;
   gap: 10px;
-  font-size: 14px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
   line-height: 1.55;
   color: #334155;
+}
+.rp-steps li {
+  position: relative;
+  padding-left: 30px;
+  counter-increment: rp-step;
+}
+.rp-steps li::before {
+  content: counter(rp-step);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #eaf1ff;
+  color: #1a6cff;
+  font-size: 11px;
+  font-weight: 800;
 }
 .rp-tips {
   display: flex;
@@ -491,18 +514,30 @@
   .rp-main {
     grid-template-columns: 1fr;
   }
+  /* Tombol Reset turun ke baris sendiri (rata kanan) supaya kotak pencarian
+     tidak terhimpit saat lebar layar mengecil. */
+  .rp-filters {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 150px);
+  }
+  .rp-reset {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
 }
 @media (max-width: 1000px) {
   .rp-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .rp-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .rp-filters .rp-search {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 560px) {
   .rp-stats {
     grid-template-columns: 1fr;
-  }
-  .rp-field {
-    max-width: none;
   }
 }
 
@@ -562,10 +597,11 @@
   }
   /* Filter turun jadi satu kolom */
   .rp-filters {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
   }
   .rp-filters .rp-search {
+    grid-column: auto;
     max-width: none;
   }
   .rp-field {
@@ -594,7 +630,7 @@
     background: #cbd5e1;
   }
   .rp-doc {
-    min-width: 180px;
+    min-width: 0;
   }
   .rp-menu {
     min-width: 180px;

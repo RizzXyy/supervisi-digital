@@ -44,7 +44,15 @@
 .jt-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
 /* Kolom tanggal digabung per hari */
-.jt-date { width: 200px; background: #f3f6f9; text-align: center; font-weight: 600; }
+.jt-date {
+  width: 200px;
+  background: #f3f6f9;
+  /* Rata atas + kiri supaya tanggal sejajar dengan baris pertama
+     kelompoknya, bukan melayang di tengah blok gabungan. */
+  vertical-align: top;
+  text-align: left;
+  font-weight: 600;
+}
 .jt-date span { display: block; }
 .jt-date small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted); }
 

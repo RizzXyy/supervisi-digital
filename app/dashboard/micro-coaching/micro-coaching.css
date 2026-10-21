@@ -143,8 +143,17 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+/* Dua kolom tanggal harus boleh menyusut. Tanpa min-width: 0, lebar asli
+   input[type="date"] (yang berbeda tiap browser) membuat rentang tanggal
+   melewati tepi kartu di layar HP. */
+.mc-range > div input {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .mc-range em {
+  flex: none;
   font-style: normal;
   color: var(--mc-muted);
 }
