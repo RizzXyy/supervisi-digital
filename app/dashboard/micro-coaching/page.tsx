@@ -27,26 +27,43 @@ import {
   type Teacher,
 } from "../../lib/dashboard-data";
 import { inisial, metaStatus, stempelWaktu, type Observasi } from "../../lib/observasi-data";
-import { listObservasiCloud } from "../../lib/observasi-supabase";
-import { getAccessToken } from "../../lib/auth";
+import { listObservasiCloud, listAkunGuru, type AkunGuru } from "../../lib/observasi-supabase";
+import { normNama } from "../../lib/id-stabil";
+import { getAccessToken, getSession, type Session } from "../../lib/auth";
 import {
   STATUS_COACHING,
   STATUS_COACHING_ORDER,
   buatPayload,
-  loadCoaching,
   rentangWaktu,
-  saveCoaching,
   teksFeedback,
   type AiFeedback,
   type Coaching,
   type StatusCoaching,
 } from "../../lib/coaching-data";
+import {
+  hapusCoachingCloud,
+  importLocalCoaching,
+  listCoachingCloud,
+  simpanCoachingCloud,
+} from "../../lib/coaching-supabase";
 import "../dashboard-home.css";
 import "./micro-coaching.css";
 
 const HARI_SINGKAT = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
-type Boot = { items: Coaching[]; teachers: Teacher[]; observasi: Observasi[]; now: Date };
+// Id khusus untuk baris "diri sendiri" saat guru belum punya baris di
+// daftar guru lokal (Data Guru). Tetap stabil supaya bisa disimpan.
+const ID_SAYA = "__saya__";
+
+type Boot = {
+  items: Coaching[];
+  teachers: Teacher[];
+  observasi: Observasi[];
+  akunGuru: AkunGuru[];
+  user: Session | null;
+  notice: string;
+  now: Date;
+};
 type FormState = {
   teacherId: string;
   date: string;
@@ -77,25 +94,55 @@ const FORM_KOSONG: FormState = {
 const urut = (a: Coaching, b: Coaching) => (a.date + a.time).localeCompare(b.date + b.time);
 const aktif = (c: Coaching, today: string) => c.status !== "selesai" && c.date >= today;
 
+// Observasi milik seorang guru. Dicocokkan lewat id guru (lokal "t1") atau
+// lewat nama, karena id guru yang tersimpan di baris observasi bisa berupa
+// id lokal maupun uuid.
+function obsMilikGuru(o: Observasi, teacherId: string, namaGuru: string) {
+  if (o.teacherId && o.teacherId === teacherId) return true;
+  const nama = normNama(namaGuru);
+  return !!nama && normNama(o.teacherName) === nama;
+}
+
 function pilihBerikutnya(items: Coaching[], today: string): string | null {
   const next = items.filter((c) => aktif(c, today)).sort(urut)[0];
   return (next ?? [...items].sort(urut)[0])?.id ?? null;
 }
 
-/* Pembungkus: data dibaca di browser dulu. Isi halaman baru dirender setelah data siap,
+/* Pembungkus: data dibaca dari Supabase dulu. Isi halaman baru dirender setelah data siap,
    jadi aman dari error "new Date() saat prerender" di Next.js. */
 export default function MicroCoachingPage() {
   const [boot, setBoot] = useState<Boot | null>(null);
 
   useEffect(() => {
     let active = true;
-    // Observasi diambil dari Supabase; coaching & daftar guru masih dari browser.
-    listObservasiCloud()
-      .catch(() => [])
-      .then((observasi) => {
-        if (!active) return;
-        setBoot({ items: loadCoaching(), teachers: loadTeachers(), observasi, now: new Date() });
-      });
+    (async () => {
+      const teachers = loadTeachers();
+      // Observasi, jadwal coaching, dan daftar akun guru diambil dari Supabase.
+      const [observasi, awan, akunGuru, user] = await Promise.all([
+        listObservasiCloud().catch(() => []),
+        listCoachingCloud().catch(() => []),
+        listAkunGuru().catch(() => []),
+        getSession(),
+      ]);
+      if (!active) return;
+
+      // Jadwal coaching lama (localStorage) dipindahkan ke Supabase, sekali jalan.
+      let items = awan;
+      let notice = "";
+      try {
+        const hasil = await importLocalCoaching(awan, (id) => teachers.find((t) => t.id === id)?.name);
+        if (hasil.imported > 0) {
+          items = await listCoachingCloud();
+          notice = `${hasil.imported} jadwal coaching lama dipindahkan ke Supabase.`;
+        } else if (hasil.failed > 0) {
+          notice = "Sebagian jadwal coaching lama belum bisa dipindahkan. Akan dicoba lagi nanti.";
+        }
+      } catch {
+        /* abaikan: tidak boleh menggagalkan halaman */
+      }
+      if (!active) return;
+      setBoot({ items, teachers, observasi, akunGuru, user, notice, now: new Date() });
+    })();
     return () => {
       active = false;
     };
@@ -112,8 +159,19 @@ export default function MicroCoachingPage() {
 }
 
 function Halaman({ boot }: { boot: Boot }) {
-  const { teachers, observasi, now } = boot;
+  const { observasi, now, akunGuru, user } = boot;
   const today = toDateKey(now);
+  const isGuru = user?.role === "guru";
+
+  // Daftar guru. Untuk guru, tambahkan baris "diri sendiri" bila namanya
+  // tidak ada di Data Guru (supaya form tetap bisa diisi).
+  const teachers = useMemo(() => {
+    const base = [...boot.teachers];
+    if (isGuru && user && !base.some((t) => normNama(t.name) === normNama(user.name))) {
+      base.push({ id: ID_SAYA, name: user.name, nip: "", mapel: "-", kelas: "-", score: null });
+    }
+    return base;
+  }, [boot.teachers, isGuru, user]);
 
   const [items, setItems] = useState<Coaching[]>(boot.items);
   const [selId, setSelId] = useState<string | null>(() => pilihBerikutnya(boot.items, today));
@@ -126,6 +184,8 @@ function Halaman({ boot }: { boot: Boot }) {
   const [modal, setModal] = useState<ModalState>(null);
   const [form, setForm] = useState<FormState>(FORM_KOSONG);
   const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [hapusId, setHapusId] = useState<string | null>(null);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -150,13 +210,25 @@ function Halaman({ boot }: { boot: Boot }) {
   const nameOf = (id: string) => teacherMap.get(id)?.name ?? "-";
   const mapelOf = (id: string) => teacherMap.get(id)?.mapel ?? "-";
 
-  function update(fn: (prev: Coaching[]) => Coaching[]) {
-    setItems((prev) => {
-      const next = fn(prev);
-      saveCoaching(next);
-      return next;
-    });
-  }
+  // Guru hanya boleh membuat sesi untuk dirinya sendiri; kepala sekolah
+  // bebas memilih guru mana pun. Daftar di form mengikuti aturan ini.
+  const pilihanGuru = useMemo(() => {
+    if (!isGuru || !user) return teachers;
+    const cocok = teachers.filter((t) => normNama(t.name) === normNama(user.name));
+    return cocok.length ? cocok : teachers.filter((t) => t.id === ID_SAYA);
+  }, [teachers, isGuru, user]);
+
+  // uuid akun guru untuk kolom guru_id (dipakai kebijakan RLS).
+  // Akun tidak boleh ditebak dari nama: dipakai hanya bila nama cocok EXAK
+  // dengan SATU akun di profiles.
+  const akunIdUntuk = (teacherId: string): string | undefined => {
+    if (!teacherId) return undefined;
+    if (isGuru && user) return user.id;
+    const nama = normNama(nameOf(teacherId));
+    if (!nama) return undefined;
+    const cocok = akunGuru.filter((a) => normNama(a.name) === nama);
+    return cocok.length === 1 ? cocok[0].id : undefined;
+  };
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
@@ -225,7 +297,9 @@ function Halaman({ boot }: { boot: Boot }) {
   }
 
   function openNew() {
-    setForm({ ...FORM_KOSONG, date: today });
+    // Untuk guru, sesi otomatis untuk dirinya sendiri.
+    const defaultGuru = isGuru && user ? (pilihanGuru[0]?.id ?? "") : "";
+    setForm({ ...FORM_KOSONG, teacherId: defaultGuru, date: today });
     setError("");
     setModal({ mode: "new" });
   }
@@ -247,12 +321,18 @@ function Halaman({ boot }: { boot: Boot }) {
     setModal({ mode: "edit", id: c.id });
   }
 
+  // Observasi milik seorang guru. Dicocokkan lewat id guru (lokal "t1")
+  // atau lewat nama, karena id guru yang tersimpan di baris observasi bisa
+  // berupa id lokal maupun uuid.
   const obsFormOpsi = useMemo(
-    () => observasi.filter((o) => o.teacherId === form.teacherId).sort((a, b) => b.date.localeCompare(a.date)),
-    [observasi, form.teacherId],
+    () =>
+      observasi
+        .filter((o) => form.teacherId && obsMilikGuru(o, form.teacherId, teacherMap.get(form.teacherId)?.name ?? ""))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [observasi, form.teacherId, teacherMap],
   );
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!modal) return;
     const topik = form.topik.trim();
@@ -272,8 +352,17 @@ function Halaman({ boot }: { boot: Boot }) {
       return;
     }
 
-    const base = {
-      teacherId: form.teacherId,
+    const id = editingId ?? `c-${Date.now()}`;
+    const lama = items.find((c) => c.id === id);
+    const observasiId = form.observasiId || null;
+    // Guru tidak pernah boleh membuat/mengubah sesi milik guru lain:
+    // guru yang dipilih dipaksa menjadi dirinya sendiri.
+    const teacherId = isGuru && user ? (pilihanGuru[0]?.id ?? form.teacherId) : form.teacherId;
+    const baris: Coaching = {
+      id,
+      teacherId,
+      teacherName: nameOf(teacherId),
+      guruAkunId: akunIdUntuk(teacherId),
       date: form.date,
       time: form.time,
       durasi: Math.round(durasi),
@@ -285,28 +374,37 @@ function Halaman({ boot }: { boot: Boot }) {
         .map((s) => s.trim())
         .filter(Boolean),
       status: form.status,
-      observasiId: form.observasiId || null,
+      observasiId,
+      // Analisis AI lama hanya berlaku bila observasi terkaitnya tidak berubah.
+      feedback: lama && lama.observasiId === observasiId ? lama.feedback : null,
     };
-    const id = editingId ?? `c-${Date.now()}`;
-    update((prev) =>
-      editingId
-        ? prev.map((c) =>
-            c.id === editingId
-              ? { ...c, ...base, feedback: c.observasiId === base.observasiId ? c.feedback : null }
-              : c,
-          )
-        : [...prev, { id, feedback: null, ...base }],
-    );
-    const d = fromDateKey(form.date);
-    setView({ y: d.getFullYear(), m: d.getMonth() });
-    setSelId(id);
-    resetFilter();
-    setModal(null);
+
+    setBusy(true);
+    try {
+      await simpanCoachingCloud(baris);
+      setItems((prev) => (editingId ? prev.map((c) => (c.id === editingId ? baris : c)) : [...prev, baris]));
+      const d = fromDateKey(form.date);
+      setView({ y: d.getFullYear(), m: d.getMonth() });
+      setSelId(id);
+      resetFilter();
+      setModal(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan jadwal coaching ke database.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function hapus(id: string) {
+  async function hapus(id: string) {
+    try {
+      await hapusCoachingCloud(id);
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : "Gagal menghapus jadwal coaching.");
+      setHapusId(null);
+      return;
+    }
     const next = items.filter((c) => c.id !== id);
-    update(() => next);
+    setItems(next);
     if (selId === id) setSelId(pilihBerikutnya(next, today));
     setHapusId(null);
   }
@@ -317,10 +415,13 @@ function Halaman({ boot }: { boot: Boot }) {
     () =>
       selected
         ? observasi
-            .filter((o) => o.teacherId === selected.teacherId && o.diterbitkan)
+            .filter(
+              (o) =>
+                obsMilikGuru(o, selected.teacherId, teacherMap.get(selected.teacherId)?.name ?? "") && o.diterbitkan,
+            )
             .sort((a, b) => b.date.localeCompare(a.date))
         : [],
-    [observasi, selected],
+    [observasi, selected, teacherMap],
   );
   const obsTerkait = selected?.observasiId ? (observasi.find((o) => o.id === selected.observasiId) ?? null) : null;
 
@@ -354,7 +455,13 @@ function Halaman({ boot }: { boot: Boot }) {
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error ?? "Gagal membuat analisis AI.");
       const fb: AiFeedback = { ...data, dibuat: stempelWaktu() };
-      update((prev) => prev.map((c) => (c.id === sesiId ? { ...c, observasiId: obsId, feedback: fb } : c)));
+      const sesi = items.find((c) => c.id === sesiId);
+      if (!sesi) throw new Error("Sesi coaching tidak ditemukan.");
+      const baris: Coaching = { ...sesi, observasiId: obsId, feedback: fb };
+      // Hasil analisis ikut disimpan ke database supaya tetap ada setelah
+      // browser ditutup atau dibuka di komputer lain.
+      await simpanCoachingCloud(baris);
+      setItems((prev) => prev.map((c) => (c.id === sesiId ? baris : c)));
     } catch (e) {
       setAiError(e instanceof Error ? e.message : "Gagal membuat analisis AI.");
     } finally {
@@ -388,6 +495,17 @@ function Halaman({ boot }: { boot: Boot }) {
           <Plus size={18} aria-hidden="true" /> Jadwalkan Coaching
         </button>
       </div>
+
+      {boot.notice && (
+        <p className="jd-info" role="status">
+          {boot.notice}
+        </p>
+      )}
+      {pageError && (
+        <p className="dg-error" role="alert">
+          {pageError}
+        </p>
+      )}
 
       {/* Filter */}
       <section className="mc-card mc-filter">
@@ -694,9 +812,13 @@ function Halaman({ boot }: { boot: Boot }) {
             <form className="dg-form" onSubmit={handleSubmit} noValidate>
               <label className="dg-field">
                 Guru
-                <select value={form.teacherId} onChange={(e) => pickTeacher(e.target.value)}>
+                <select
+                  value={form.teacherId}
+                  onChange={(e) => pickTeacher(e.target.value)}
+                  disabled={isGuru}
+                >
                   <option value="">Pilih guru</option>
-                  {[...teachers]
+                  {[...pilihanGuru]
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((t) => (
                       <option key={t.id} value={t.id}>
@@ -796,11 +918,11 @@ function Halaman({ boot }: { boot: Boot }) {
               )}
 
               <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)}>
+                <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)} disabled={busy}>
                   Batal
                 </button>
-                <button type="submit" className="dbd-btn-primary">
-                  {modal.mode === "edit" ? "Simpan Perubahan" : "Simpan Jadwal"}
+                <button type="submit" className="dbd-btn-primary" disabled={busy}>
+                  {busy ? "Menyimpan..." : modal.mode === "edit" ? "Simpan Perubahan" : "Simpan Jadwal"}
                 </button>
               </div>
             </form>

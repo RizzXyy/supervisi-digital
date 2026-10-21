@@ -1,6 +1,8 @@
 // Data & logika fitur Micro-Coaching.
-// File ini TAMBAHAN (tidak menimpa file lama). Data disimpan di localStorage dulu,
-// nanti ganti dengan Supabase.
+// File ini TAMBAHAN (tidak menimpa file lama). Penyimpanan sudah pindah ke
+// Supabase (lihat coaching-supabase.ts); file ini masih menyimpan tipe data
+// dan aturan perhitungan. localStorage hanya dipakai SEKALI lagi untuk
+// memindahkan data lama ke database.
 
 import { INSTRUMEN, hitungSkor, type Observasi } from "./observasi-data";
 
@@ -43,6 +45,12 @@ export type FeedbackPayload = {
 export type Coaching = {
   id: string;
   teacherId: string;
+  // Nama guru ikut disimpan supaya sesi tetap terbaca setelah pindah ke
+  // Supabase (id lokal "t1" tidak selalu bisa dipulihkan).
+  teacherName?: string;
+  // uuid akun guru di tabel profiles. dipakai kebijakan RLS supaya guru
+  // hanya melihat sesinya sendiri.
+  guruAkunId?: string;
   date: string; // "YYYY-MM-DD"
   time: string; // "HH:MM"
   durasi: number; // menit
@@ -69,14 +77,6 @@ export function loadCoaching(): Coaching[] {
     /* abaikan */
   }
   return [];
-}
-
-export function saveCoaching(list: Coaching[]) {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(list));
-  } catch {
-    /* penyimpanan penuh atau diblokir */
-  }
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
