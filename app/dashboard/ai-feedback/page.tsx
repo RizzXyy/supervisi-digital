@@ -39,16 +39,17 @@ import {
 import { type RppDoc, type RppStatus } from "../../lib/rpp-store";
 import { listRpp } from "../../lib/rpp-supabase";
 import { stempelWaktu, type Observasi } from "../../lib/observasi-data";
-import { listObservasiCloud } from "../../lib/observasi-supabase";
-import { buatPayload, loadCoaching, type AiFeedback, type Coaching } from "../../lib/coaching-data";
+import { listAkunGuru, listObservasiCloud, type AkunGuru } from "../../lib/observasi-supabase";
+import { normNama } from "../../lib/id-stabil";
+import { buatPayload, type AiFeedback, type Coaching } from "../../lib/coaching-data";
+import { listCoachingCloud } from "../../lib/coaching-supabase";
 import {
   SAMPLE_RECORDS,
   TINDAK_LANJUT_LABEL,
-  loadFeedback,
-  saveFeedback,
   type FeedbackRecord,
   type FeedbackSources,
 } from "../../lib/ai-feedback-store";
+import { importLocalFeedback, listFeedbackCloud, simpanFeedbackCloud } from "../../lib/ai-feedback-supabase";
 import "../dashboard-home.css";
 import "./ai-feedback.css";
 
@@ -94,6 +95,7 @@ export default function AiFeedbackPage() {
   const [observasi, setObservasi] = useState<Observasi[]>([]);
   const [coaching, setCoaching] = useState<Coaching[]>([]);
   const [records, setRecords] = useState<FeedbackRecord[]>([]);
+  const [akunGuru, setAkunGuru] = useState<AkunGuru[]>([]);
   const [ready, setReady] = useState(false);
 
   const [tab, setTab] = useState<Tab>("hasil");
@@ -110,27 +112,45 @@ export default function AiFeedbackPage() {
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
+    let active = true;
+    (async () => {
       setTeachers(loadTeachers());
       setSups(getSupervisions());
-      setCoaching(loadCoaching());
-      setRecords(loadFeedback());
-      // Dokumen RPP & observasi diambil dari Supabase agar sama dengan
-      // halaman RPP dan Observasi. Keduanya menunggu bersama sebelum siap.
-      Promise.all([listRpp(), listObservasiCloud()])
-        .then(([docs, obs]) => {
-          setDocs(docs);
-          setObservasi(obs);
-        })
-        .catch((e) => {
-          setDocs([]);
-          setObservasi([]);
-          setNotice(e instanceof Error ? e.message : "Gagal memuat data observasi & RPP.");
-        })
-        .finally(() => setReady(true));
-    }, 0);
-    getSession().then((s) => setUser(s));
-    return () => window.clearTimeout(id);
+      // Semua data (dokumen RPP, observasi, sesi coaching, riwayat feedback)
+      // diambil dari Supabase agar sama dengan halaman lain.
+      const [docs, obs, sesi, fb, akun] = await Promise.all([
+        listRpp().catch(() => [] as RppDoc[]),
+        listObservasiCloud().catch(() => [] as Observasi[]),
+        listCoachingCloud().catch(() => [] as Coaching[]),
+        listFeedbackCloud().catch(() => [] as FeedbackRecord[]),
+        listAkunGuru().catch(() => [] as AkunGuru[]),
+      ]);
+      if (!active) return;
+      setDocs(docs);
+      setObservasi(obs);
+      setCoaching(sesi);
+      setRecords(fb);
+      setAkunGuru(akun);
+      // Riwayat lama di browser dipindahkan ke Supabase, sekali jalan.
+      try {
+        const hasil = await importLocalFeedback(fb);
+        if (hasil.imported > 0 && active) {
+          const baru = await listFeedbackCloud();
+          if (!active) return;
+          setRecords(baru);
+          setNotice(`${hasil.imported} riwayat AI Feedback lama dipindahkan ke Supabase.`);
+        }
+      } catch {
+        /* abaikan: tidak boleh menggagalkan halaman */
+      }
+      if (active) setReady(true);
+    })();
+    getSession().then((s) => {
+      if (active) setUser(s);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -158,6 +178,16 @@ export default function AiFeedbackPage() {
 
   const subjectName = isGuru ? (user?.name ?? "") : (subject?.name ?? "");
 
+  // uuid akun guru yang sedang ditinjau. Dipakai untuk kolom guru_id supaya
+  // kebijakan RLS bisa membedakan feedback milik siapa. Nama TIDAK dipakai
+  // menebak kalau lebih dari satu akun yang sama namanya.
+  const guruAkunIdSubject = () => {
+    if (!subjectName) return undefined;
+    if (isGuru && user) return user.id;
+    const cocok = akunGuru.filter((a) => normNama(a.name) === normNama(subjectName));
+    return cocok.length === 1 ? cocok[0].id : undefined;
+  };
+
   const sessions = useMemo(
     () =>
       subject
@@ -177,11 +207,17 @@ export default function AiFeedbackPage() {
   };
   const recentDocs = [...myDocs].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)).slice(0, 4);
 
-  // Riwayat feedback nyata untuk guru ini
-  const subjectRecords = useMemo(
-    () => records.filter((r) => r.teacherName === subjectName).sort((a, b) => b.generatedAt.localeCompare(a.generatedAt)),
-    [records, subjectName],
-  );
+  // Riwayat feedback nyata untuk guru ini.
+  // Dicocokkan lewat nama; untuk akun guru juga lewat uuid akunnya, supaya
+  // riwayat tetap ditemukan walau ejaan nama sedikit berbeda.
+  const subjectRecords = useMemo(() => {
+    const byName = records.filter((r) => r.teacherName === subjectName);
+    const others = isGuru && user?.id ? records.filter((r) => r.guruAkunId === user.id) : [];
+    const seen = new Set(byName.map((r) => r.id));
+    return [...byName, ...others.filter((r) => !seen.has(r.id))].sort((a, b) =>
+      b.generatedAt.localeCompare(a.generatedAt),
+    );
+  }, [records, subjectName, isGuru, user]);
 
   // Feedback yang ditampilkan: contoh ilustrasi, pilihan dari riwayat, atau milik sesi terpilih
   const shown: FeedbackRecord | undefined = sample
@@ -265,6 +301,7 @@ export default function AiFeedbackPage() {
       const fb: AiFeedback = { ...data, dibuat: stempelWaktu() };
       const rec: FeedbackRecord = {
         id: `af-${Date.now()}`,
+        guruAkunId: guruAkunIdSubject(),
         teacherName: subjectName,
         supervisionId: session.id,
         sessionDate: toDateKey(session.date),
@@ -279,9 +316,10 @@ export default function AiFeedbackPage() {
         tindakLanjut: "belum",
         archived: false,
       };
-      const next = [rec, ...records];
-      setRecords(next);
-      saveFeedback(next);
+      // Simpan ke database dulu, baru tampilkan. Kalau gagal, pengguna
+      // tahu tanpa mengira datanya sudah tersimpan.
+      await simpanFeedbackCloud(rec);
+      setRecords((prev) => [rec, ...prev]);
       setRecordId(rec.id);
       setSample(false);
       setSub("ringkasan");

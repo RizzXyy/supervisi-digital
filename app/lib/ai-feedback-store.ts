@@ -6,7 +6,9 @@
 //    "Belum ada feedback", bukan analisis karangan.
 // 3. AI memberi rekomendasi, bukan keputusan penilaian resmi.
 //
-// Data disimpan di localStorage (per browser). Nanti ganti dengan tabel Supabase.
+// Penyimpanan sudah pindah ke Supabase (lihat ai-feedback-supabase.ts). File ini
+// masih menyimpan tipe data dan contoh ilustrasi. localStorage hanya dipakai
+// SEKALI lagi untuk memindahkan riwayat lama ke database.
 
 export type TindakLanjut = "belum" | "micro-coaching" | "rtl";
 
@@ -20,6 +22,9 @@ export type FeedbackSources = {
 export type FeedbackRecord = {
   id: string;
   teacherName: string;
+  // uuid akun guru di tabel profiles. Dipakai kebijakan RLS supaya guru
+  // hanya melihat dan menyimpan feedback miliknya sendiri.
+  guruAkunId?: string;
   supervisionId: string | null;
   sessionDate: string; // "YYYY-MM-DD"
   mapel: string;
@@ -55,14 +60,6 @@ export function loadFeedback(): FeedbackRecord[] {
     /* abaikan */
   }
   return [];
-}
-
-export function saveFeedback(list: FeedbackRecord[]) {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(list.filter((r) => !r.sample)));
-  } catch {
-    /* penyimpanan penuh atau diblokir */
-  }
 }
 
 // Contoh ilustrasi untuk melihat rancangan tampilan. BUKAN hasil observasi guru yang sebenarnya.
