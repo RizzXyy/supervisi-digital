@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Plus, Trash2, Eye, EyeOff, CircleCheck } from "lucide-react";
+import {
+  BookOpen,
+  CircleCheck,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Plus,
+  Save,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import {
   getProfilSaya,
   simpanProfilSaya,
@@ -223,9 +233,29 @@ export default function ProfilPage() {
 
         {/* Data diri */}
         <section className={s.panel}>
-          <h2 className={s.panelTitle}>Data Diri</h2>
+          <div className={s.panelHead}>
+            <div className={s.panelHeadMain}>
+              <span className={s.panelIcon} aria-hidden="true">
+                <UserRound size={18} />
+              </span>
+              <div>
+                <h2 className={s.panelTitle}>Data Diri</h2>
+                <p className={s.panelDesc}>
+                  Informasi utama akun yang tampil di dashboard Anda.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className={s.profileRow}>
-            <div className={s.avatar}>{inisial || "?"}</div>
+            <div className={s.identity}>
+              <div className={s.avatar}>{inisial || "?"}</div>
+              <strong className={s.identityName}>{nama.trim() || "Nama Pengguna"}</strong>
+              <span className={s.roleChip}>
+                {role === "guru" ? "Guru" : "Kepala Sekolah"}
+              </span>
+            </div>
+
             <div className={s.grid2}>
               <Field label="Nama Lengkap" error={errors.nama}>
                 <input
@@ -269,7 +299,17 @@ export default function ProfilPage() {
         {role === "guru" && (
           <section className={s.panel}>
             <div className={s.panelHead}>
-              <h2 className={s.panelTitle}>Mata Pelajaran & Kelas yang Diajar</h2>
+              <div className={s.panelHeadMain}>
+                <span className={s.panelIcon} aria-hidden="true">
+                  <BookOpen size={18} />
+                </span>
+                <div>
+                  <h2 className={s.panelTitle}>Mata Pelajaran &amp; Kelas yang Diajar</h2>
+                  <p className={s.panelDesc}>
+                    Tambahkan mata pelajaran dan kelas yang Anda ampu.
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 className={s.btnOutline}
@@ -318,10 +358,19 @@ export default function ProfilPage() {
 
         {/* Kata sandi */}
         <section className={s.panel}>
-          <h2 className={s.panelTitle}>Pengaturan Kata Sandi</h2>
-          <p className={s.panelNote}>
-            Biarkan kosong jika tidak ingin mengubah kata sandi.
-          </p>
+          <div className={s.panelHead}>
+            <div className={s.panelHeadMain}>
+              <span className={s.panelIcon} aria-hidden="true">
+                <KeyRound size={18} />
+              </span>
+              <div>
+                <h2 className={s.panelTitle}>Pengaturan Kata Sandi</h2>
+                <p className={s.panelDesc}>
+                  Biarkan kosong jika tidak ingin mengubah kata sandi.
+                </p>
+              </div>
+            </div>
+          </div>
           <div className={s.grid3}>
             <Field label="Kata Sandi Saat Ini" error={errors.pwLama}>
               <PasswordInput
@@ -357,7 +406,7 @@ export default function ProfilPage() {
 
         <div className={s.actions}>
           <button type="submit" className={s.btnPrimary}>
-            Simpan Perubahan
+            <Save size={17} aria-hidden="true" /> Simpan Perubahan
           </button>
         </div>
       </form>
