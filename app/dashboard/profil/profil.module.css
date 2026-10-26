@@ -240,6 +240,147 @@
   cursor: not-allowed;
 }
 
+/* ---------- Ringkasan pengembangan ---------- */
+.summaryPanel {
+  margin-bottom: 18px;
+}
+.summaryIkon {
+  color: #7c3aed;
+  background: #f3e8ff;
+}
+.summaryStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.summaryDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.summaryLoading {
+  padding: 18px;
+  border: 1px dashed var(--g-line);
+  border-radius: 12px;
+  color: var(--g-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.summaryCard {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--g-line);
+  border-radius: 13px;
+  background: #fbfdff;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.summaryCard:hover {
+  transform: translateY(-2px);
+  border-color: #bcd3fb;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+}
+.summaryCardIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+.summaryCardBody {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-right: 12px;
+}
+.summaryCardLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--g-muted);
+}
+.summaryCardValue {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--g-text);
+}
+.summaryCardMeta {
+  overflow: hidden;
+  color: var(--g-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+.summaryCardArrow {
+  position: absolute;
+  top: 10px;
+  right: 9px;
+  color: #94a3b8;
+}
+.summaryCard[data-tone="biru"] .summaryCardIcon {
+  color: #1d63ed;
+  background: #eaf1ff;
+}
+.summaryCard[data-tone="ungu"] .summaryCardIcon {
+  color: #7c3aed;
+  background: #f3e8ff;
+}
+.summaryCard[data-tone="oranye"] .summaryCardIcon {
+  color: #c2410c;
+  background: #ffedd5;
+}
+.summaryCard[data-tone="hijau"] .summaryCardIcon {
+  color: #15803d;
+  background: #dcfce7;
+}
+.summaryFlow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  color: #94a3b8;
+}
+.summaryFlowStep {
+  padding: 4px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+.summaryHint {
+  margin-top: 10px;
+  color: var(--g-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* ---------- Tombol & notifikasi ---------- */
 .btnOutline,
 .btnPrimary {
@@ -305,6 +446,12 @@
   color: #b45309;
   font-size: 13px;
   font-weight: 600;
+}
+
+@media (max-width: 1000px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 800px) {
@@ -384,6 +531,12 @@
     align-items: stretch;
     gap: 12px;
     margin-bottom: 16px;
+  }
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+  .summaryStatus {
+    align-self: flex-start;
   }
   .panelHead .btnOutline {
     width: 100%;

@@ -30,10 +30,8 @@ import {
   BULAN_LENGKAP,
   formatTanggalPendek,
   fromDateKey,
-  getSupervisions,
   loadTeachers,
   toDateKey,
-  type Supervision,
   type Teacher,
 } from "../../lib/dashboard-data";
 import { type RppDoc, type RppStatus } from "../../lib/rpp-store";
@@ -87,10 +85,38 @@ function fmtDihasilkan(iso: string) {
   return `${formatTanggalPendek(d)}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Sesi supervisi di halaman ini DITURUNKAN dari observasi yang sudah
+// diterbitkan, bukan dari data contoh/localStorage. Satu observasi = satu sesi.
+type SesiSupervisi = {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  guruAkunId?: string;
+  date: Date;
+  mapel: string;
+  kelas: string;
+  status: "selesai";
+};
+
+function sesiDariObservasi(list: Observasi[]): SesiSupervisi[] {
+  return list
+    .filter((o) => o.diterbitkan)
+    .map((o) => ({
+      id: o.id,
+      teacherId: o.teacherId,
+      teacherName: o.teacherName ?? "",
+      guruAkunId: o.guruAkunId ?? undefined,
+      date: fromDateKey(o.date),
+      mapel: o.mapel,
+      kelas: o.kelas,
+      status: "selesai" as const,
+    }))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
 export default function AiFeedbackPage() {
   const [user, setUser] = useState<Session | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [sups, setSups] = useState<Supervision[]>([]);
   const [docs, setDocs] = useState<RppDoc[]>([]);
   const [observasi, setObservasi] = useState<Observasi[]>([]);
   const [coaching, setCoaching] = useState<Coaching[]>([]);
@@ -115,7 +141,6 @@ export default function AiFeedbackPage() {
     let active = true;
     (async () => {
       setTeachers(loadTeachers());
-      setSups(getSupervisions());
       // Semua data (dokumen RPP, observasi, sesi coaching, riwayat feedback)
       // diambil dari Supabase agar sama dengan halaman lain.
       const [docs, obs, sesi, fb, akun] = await Promise.all([
@@ -172,33 +197,63 @@ export default function AiFeedbackPage() {
 
   const subject = useMemo(() => {
     if (!user) return undefined;
-    if (isGuru) return teachers.find((t) => t.name.trim().toLowerCase() === user.name.trim().toLowerCase());
+    if (isGuru) {
+      const lokal = teachers.find((t) => normNama(t.name) === normNama(user.name));
+      if (lokal) return lokal;
+      // Akun guru baru mungkin belum ada di daftar guru lokal. Turunkan data
+      // guru dari observasi yang sudah diterbitkan untuk akunnya.
+      const obs = observasi.find(
+        (o) =>
+          o.diterbitkan &&
+          ((!!user.id && o.guruAkunId === user.id) ||
+            normNama(o.teacherName ?? "") === normNama(user.name)),
+      );
+      if (obs)
+        return {
+          id: obs.teacherId || `akun-${user.id}`,
+          name: user.name,
+          nip: "",
+          mapel: obs.mapel,
+          kelas: obs.kelas,
+          score: obs.skorTersimpan ?? null,
+        } satisfies Teacher;
+      return undefined;
+    }
     return teachers.find((t) => t.id === pickedTeacherId) ?? sortedTeachers[0];
-  }, [user, isGuru, teachers, pickedTeacherId, sortedTeachers]);
+  }, [user, isGuru, teachers, pickedTeacherId, sortedTeachers, observasi]);
 
   const subjectName = isGuru ? (user?.name ?? "") : (subject?.name ?? "");
 
   // uuid akun guru yang sedang ditinjau. Dipakai untuk kolom guru_id supaya
   // kebijakan RLS bisa membedakan feedback milik siapa. Nama TIDAK dipakai
   // menebak kalau lebih dari satu akun yang sama namanya.
-  const guruAkunIdSubject = () => {
+  const guruAkunId = useMemo(() => {
     if (!subjectName) return undefined;
     if (isGuru && user) return user.id;
     const cocok = akunGuru.filter((a) => normNama(a.name) === normNama(subjectName));
     return cocok.length === 1 ? cocok[0].id : undefined;
-  };
+  }, [subjectName, isGuru, user, akunGuru]);
 
-  const sessions = useMemo(
-    () =>
-      subject
-        ? sups.filter((s) => s.teacherId === subject.id).sort((a, b) => b.date.getTime() - a.date.getTime())
-        : [],
-    [sups, subject],
-  );
-  const session = sessions.find((s) => s.id === sessionId) ?? sessions.find((s) => s.status === "selesai") ?? sessions[0];
+  // Hasil observasi yang sudah diterbitkan untuk guru ini. Ini SATU-SATUNYA
+  // sumber sesi supervisi di halaman AI Feedback.
+  const obsPublished = useMemo(() => {
+    const nama = subjectName ? normNama(subjectName) : "";
+    return observasi.filter((o) => {
+      if (!o.diterbitkan) return false;
+      if (subject?.id && o.teacherId === subject.id) return true;
+      if (guruAkunId && o.guruAkunId === guruAkunId) return true;
+      return !!nama && normNama(o.teacherName ?? "") === nama;
+    });
+  }, [observasi, subject, subjectName, guruAkunId]);
+
+  const sessions = useMemo(() => sesiDariObservasi(obsPublished), [obsPublished]);
+  const session = sessions.find((s) => s.id === sessionId) ?? sessions[0];
 
   // Dokumen RPP milik guru yang ditinjau (data nyata)
-  const myDocs = useMemo(() => docs.filter((d) => d.ownerName === subjectName), [docs, subjectName]);
+  const myDocs = useMemo(
+    () => docs.filter((d) => normNama(d.ownerName) === normNama(subjectName)),
+    [docs, subjectName],
+  );
   const docCount = {
     ok: myDocs.filter((d) => d.status === "disetujui").length,
     wait: myDocs.filter((d) => d.status === "menunggu").length,
@@ -211,32 +266,36 @@ export default function AiFeedbackPage() {
   // Dicocokkan lewat nama; untuk akun guru juga lewat uuid akunnya, supaya
   // riwayat tetap ditemukan walau ejaan nama sedikit berbeda.
   const subjectRecords = useMemo(() => {
-    const byName = records.filter((r) => r.teacherName === subjectName);
-    const others = isGuru && user?.id ? records.filter((r) => r.guruAkunId === user.id) : [];
+    const nama = normNama(subjectName);
+    const byName = records.filter((r) => !!nama && normNama(r.teacherName) === nama);
+    const others = guruAkunId ? records.filter((r) => r.guruAkunId === guruAkunId) : [];
     const seen = new Set(byName.map((r) => r.id));
     return [...byName, ...others.filter((r) => !seen.has(r.id))].sort((a, b) =>
       b.generatedAt.localeCompare(a.generatedAt),
     );
-  }, [records, subjectName, isGuru, user]);
+  }, [records, subjectName, guruAkunId]);
 
   // Feedback yang ditampilkan: contoh ilustrasi, pilihan dari riwayat, atau milik sesi terpilih
   const shown: FeedbackRecord | undefined = sample
     ? (SAMPLE_RECORDS.find((r) => r.id === recordId) ?? SAMPLE_RECORDS[0])
     : recordId
       ? subjectRecords.find((r) => r.id === recordId)
-      : subjectRecords.find((r) => r.supervisionId === session?.id);
+      : (subjectRecords.find((r) => r.supervisionId === session?.id) ??
+        (session
+          ? subjectRecords.find((r) => r.sessionDate === toDateKey(session.date))
+          : undefined));
 
   const historyList = sample ? SAMPLE_RECORDS : subjectRecords;
 
   // Sumber data nyata untuk guru yang ditinjau (dipakai di kartu sumber & syarat pembuatan).
-  const obsPublished = useMemo(
-    () => (subject ? observasi.filter((o) => o.teacherId === subject.id && o.diterbitkan) : []),
-    [observasi, subject],
-  );
-  const coachingCount = useMemo(
-    () => (subject ? coaching.filter((c) => c.teacherId === subject.id).length : 0),
-    [coaching, subject],
-  );
+  const coachingCount = useMemo(() => {
+    const nama = normNama(subjectName);
+    return coaching.filter((c) => {
+      if (subject?.id && c.teacherId === subject.id) return true;
+      if (guruAkunId && c.guruAkunId === guruAkunId) return true;
+      return !!nama && normNama(c.teacherName) === nama;
+    }).length;
+  }, [coaching, subject, subjectName, guruAkunId]);
   const liveSources: FeedbackSources = {
     observasi: obsPublished.length,
     catatan: obsPublished.filter((o) => o.catatan.trim() !== "").length,
@@ -261,7 +320,12 @@ export default function AiFeedbackPage() {
 
   function changeDraftTeacher(id: string) {
     setDraftTeacher(id);
-    const first = sups.filter((s) => s.teacherId === id).sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+    const nama = teachers.find((t) => t.id === id)?.name ?? "";
+    const first = sesiDariObservasi(observasi).find(
+      (s) =>
+        s.teacherId === id ||
+        (!!nama && normNama(s.teacherName) === normNama(nama)),
+    );
     setDraftSession(first?.id ?? "");
   }
 
@@ -279,7 +343,10 @@ export default function AiFeedbackPage() {
       setNotice("Belum ada sesi supervisi untuk guru ini.");
       return;
     }
-    const o = obsPublished.find((x) => x.date === toDateKey(session.date)) ?? obsPublished[0];
+    const o =
+      obsPublished.find((x) => x.id === session.id) ??
+      obsPublished.find((x) => x.date === toDateKey(session.date)) ??
+      obsPublished[0];
     if (!o) {
       setNotice("Belum ada hasil observasi yang dipublikasikan untuk sesi ini.");
       return;
@@ -301,7 +368,7 @@ export default function AiFeedbackPage() {
       const fb: AiFeedback = { ...data, dibuat: stempelWaktu() };
       const rec: FeedbackRecord = {
         id: `af-${Date.now()}`,
-        guruAkunId: guruAkunIdSubject(),
+        guruAkunId,
         teacherName: subjectName,
         supervisionId: session.id,
         sessionDate: toDateKey(session.date),
@@ -346,9 +413,14 @@ export default function AiFeedbackPage() {
     );
   }
 
-  const draftSessions = sups
-    .filter((s) => s.teacherId === (isGuru ? subject?.id : draftTeacher))
-    .sort((a, b) => b.date.getTime() - a.date.getTime());
+  const draftTeacherName = teachers.find((t) => t.id === draftTeacher)?.name ?? "";
+  const draftSessions = isGuru
+    ? sessions
+    : sesiDariObservasi(observasi).filter(
+        (s) =>
+          s.teacherId === draftTeacher ||
+          (!!draftTeacherName && normNama(s.teacherName) === normNama(draftTeacherName)),
+      );
 
   // Info guru pada kartu atas
   const card = sample && shown
@@ -361,10 +433,10 @@ export default function AiFeedbackPage() {
         periode: session ? formatTanggalPendek(session.date) : "-",
       };
 
-  const emptyText = isGuru && !subject
-    ? "Akun ini belum terhubung dengan data guru, jadi sesi supervisi belum dapat ditemukan. Hubungi Kepala Sekolah."
+  const emptyText = isGuru && !subject && obsPublished.length === 0
+    ? "Akun ini belum terhubung dengan data guru dan belum punya hasil observasi yang diterbitkan. Hubungi Kepala Sekolah."
     : !session
-      ? "Belum ada sesi supervisi untuk guru ini."
+      ? "Belum ada hasil observasi yang diterbitkan untuk guru ini. Sesi supervisi akan muncul otomatis setelah Kepala Sekolah menerbitkan hasil observasi."
       : "Feedback dibuat dari hasil observasi yang sudah dipublikasikan Kepala Sekolah untuk sesi ini. Hasil observasinya belum tersedia, sehingga AI belum membuat analisis.";
 
   const sourceTiles = [

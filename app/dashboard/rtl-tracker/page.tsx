@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -21,8 +21,13 @@ import {
   X,
 } from "lucide-react";
 import { formatTanggal, formatTanggalPendek, fromDateKey, loadTeachers, toDateKey, type Teacher } from "../../lib/dashboard-data";
-import { inisial, stempelWaktu } from "../../lib/observasi-data";
+import { inisial, stempelWaktu, type Observasi } from "../../lib/observasi-data";
 import { loadCoaching, type Coaching } from "../../lib/coaching-data";
+import { getSession, type Session } from "../../lib/auth";
+import { listAkunGuru, listObservasiCloud, type AkunGuru } from "../../lib/observasi-supabase";
+import { listCoachingCloud } from "../../lib/coaching-supabase";
+import { hapusRtlCloud, importLocalRtl, listRtlCloud, simpanRtlCloud } from "../../lib/rtl-supabase";
+import { normNama } from "../../lib/id-stabil";
 import {
   STATUS_RTL,
   STATUS_RTL_ORDER,
@@ -31,6 +36,9 @@ import {
   gradienDonat,
   hapusBuktiFile,
   hitungStatus,
+  idBuktiBaru,
+  idRtlBaru,
+  idTahapBaru,
   loadRtl,
   progres,
   saveRtl,
@@ -48,11 +56,22 @@ import "./rtl-tracker.css";
 
 const PER_HAL = 6;
 
-type Boot = { items: Rtl[]; teachers: Teacher[]; coaching: Coaching[]; now: Date };
+type Boot = {
+  items: Rtl[];
+  teachers: Teacher[];
+  coaching: Coaching[];
+  observasi: Observasi[];
+  akunGuru: AkunGuru[];
+  user: Session | null;
+  selfId: string;
+  cloudError: string;
+  now: Date;
+};
 type TabDetail = "detail" | "bukti" | "riwayat";
 type WaktuFilter = "semua" | "7" | "bulan" | "telat";
 type FormState = {
   teacherId: string;
+  observasiId: string;
   target: string;
   kelas: string;
   tenggat: string;
@@ -65,6 +84,7 @@ type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 const FORM_KOSONG: FormState = {
   teacherId: "",
+  observasiId: "",
   target: "",
   kelas: "",
   tenggat: "",
@@ -117,10 +137,115 @@ export default function RtlTrackerPage() {
   const [boot, setBoot] = useState<Boot | null>(null);
 
   useEffect(() => {
+    let active = true;
     const id = window.setTimeout(() => {
-      setBoot({ items: loadRtl(), teachers: loadTeachers(), coaching: loadCoaching(), now: new Date() });
+      void (async () => {
+        const user = await getSession().catch(() => null);
+        let teachers = loadTeachers();
+        let selfId = "";
+
+        if (user?.role === "guru") {
+          const lokal = teachers.find((t) => normNama(t.name) === normNama(user.name));
+          if (lokal) selfId = lokal.id;
+          else {
+            selfId = user.id;
+            teachers = [
+              { id: user.id, name: user.name, nip: user.nip ?? "", mapel: "", kelas: "", score: null },
+              ...teachers,
+            ];
+          }
+        }
+
+        let cloudError = "";
+        let items: Rtl[] = [];
+        let cloudOk = false;
+        try {
+          items = await listRtlCloud();
+          cloudOk = true;
+        } catch (e) {
+          cloudError =
+            e instanceof Error
+              ? e.message
+              : "Daftar RTL belum bisa dimuat dari database. Perubahan hanya tersimpan di perangkat ini.";
+          items = loadRtl();
+        }
+
+        const [coaching, observasi, akunGuru] = await Promise.all([
+          listCoachingCloud().catch(() => loadCoaching()),
+          listObservasiCloud().catch(() => [] as Observasi[]),
+          listAkunGuru().catch(() => [] as AkunGuru[]),
+        ]);
+
+        if (!active) return;
+
+        // Pindahkan RTL lama di browser ke Supabase sekali jalan. Untuk guru,
+        // hanya baris miliknya yang diimpor supaya tidak ditolak RLS.
+        if (cloudOk) {
+          const hasil = await importLocalRtl(items, {
+            teacherName: (teacherId) => teachers.find((t) => t.id === teacherId)?.name,
+            guruAkunId: (teacherId, nama) => {
+              if (user?.role === "guru" && teacherId === selfId) return user.id;
+              const cocok = akunGuru.filter((a) => normNama(a.name) === normNama(nama));
+              return cocok.length === 1 ? cocok[0].id : undefined;
+            },
+            filter:
+              user?.role === "guru"
+                ? (r) =>
+                    r.teacherId === selfId ||
+                    normNama(r.teacherName ?? "") === normNama(user.name)
+                : undefined,
+          });
+          if (!active) return;
+          items = hasil.items;
+          if (hasil.imported > 0) {
+            try {
+              items = await listRtlCloud();
+            } catch {
+              /* tetap tampilkan hasil impor */
+            }
+          }
+          if (hasil.failed > 0)
+            cloudError = `${hasil.failed} RTL lama belum berhasil dipindahkan ke database. Data tetap tersimpan di browser dan akan dicoba lagi saat halaman dibuka.`;
+        }
+
+        if (user?.role === "guru") {
+          items = items.filter(
+            (r) =>
+              r.teacherId === selfId ||
+              r.guruAkunId === user.id ||
+              normNama(r.teacherName ?? "") === normNama(user.name),
+          );
+        }
+
+        const coachingSaya =
+          user?.role === "guru"
+            ? coaching.filter(
+                (c) =>
+                  c.teacherId === "__saya__" ||
+                  c.teacherId === selfId ||
+                  c.guruAkunId === user.id ||
+                  normNama(c.teacherName) === normNama(user.name),
+              )
+            : coaching;
+
+        if (!active) return;
+        setBoot({
+          items,
+          teachers,
+          coaching: coachingSaya,
+          observasi,
+          akunGuru,
+          user,
+          selfId,
+          cloudError,
+          now: new Date(),
+        });
+      })();
     }, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      active = false;
+      window.clearTimeout(id);
+    };
   }, []);
 
   if (!boot) {
@@ -134,10 +259,12 @@ export default function RtlTrackerPage() {
 }
 
 function Halaman({ boot }: { boot: Boot }) {
-  const { teachers, coaching, now } = boot;
+  const { teachers, coaching, observasi, akunGuru, user, selfId, now } = boot;
   const today = toDateKey(now);
 
   const [items, setItems] = useState<Rtl[]>(boot.items);
+  const itemsRef = useRef<Rtl[]>(boot.items);
+  const [cloudNotice, setCloudNotice] = useState(boot.cloudError);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"semua" | StatusRtl>("semua");
@@ -168,17 +295,78 @@ function Halaman({ boot }: { boot: Boot }) {
     return () => window.clearTimeout(id);
   }, [buktiError]);
 
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   const teacherMap = useMemo(() => new Map(teachers.map((t) => [t.id, t])), [teachers]);
-  const nameOf = (id: string) => teacherMap.get(id)?.name ?? "-";
+  const teacherNameOf = (r: Rtl) =>
+    (r.teacherName || teacherMap.get(r.teacherId)?.name || "").trim();
+  const nameOf = (id: string) =>
+    teacherMap.get(id)?.name ??
+    items.find((r) => r.teacherId === id && r.teacherName)?.teacherName ??
+    "-";
   const mapelOf = (id: string) => teacherMap.get(id)?.mapel ?? "-";
-  const guruTerurut = useMemo(() => [...teachers].sort((a, b) => a.name.localeCompare(b.name)), [teachers]);
+  const guruTerurut = useMemo(
+    () =>
+      user?.role === "guru"
+        ? teachers.filter((t) => t.id === selfId)
+        : [...teachers].sort((a, b) => a.name.localeCompare(b.name)),
+    [teachers, user, selfId],
+  );
+
+  // uuid akun guru untuk kolom guru_id. Untuk guru yang login, nilainya sudah
+  // pasti akunnya sendiri.
+  function guruAkunIdOf(r: Rtl) {
+    if (user?.role === "guru" && (r.teacherId === selfId || normNama(r.teacherName ?? "") === normNama(user.name)))
+      return user.id;
+    if (r.guruAkunId) return r.guruAkunId;
+    const nama = teacherNameOf(r);
+    const cocok = akunGuru.filter((a) => normNama(a.name) === normNama(nama));
+    return cocok.length === 1 ? cocok[0].id : undefined;
+  }
+
+  // Simpan hanya baris yang berubah / terhapus. UI tetap responsif; bila
+  // database belum siap, beri tahu pengguna bahwa perubahan masih lokal.
+  async function simpanDiff(prev: Rtl[], next: Rtl[]) {
+    const lama = new Map(prev.map((r) => [r.id, r]));
+    const idBaru = new Set(next.map((r) => r.id));
+    const gagal: string[] = [];
+
+    for (const r of next) {
+      const sebelumnya = lama.get(r.id);
+      if (sebelumnya && JSON.stringify(sebelumnya) === JSON.stringify(r)) continue;
+      try {
+        await simpanRtlCloud(r, teacherNameOf(r), guruAkunIdOf(r));
+      } catch (e) {
+        gagal.push(e instanceof Error ? e.message : "Gagal menyimpan RTL.");
+      }
+    }
+    for (const r of prev) {
+      if (idBaru.has(r.id)) continue;
+      try {
+        await hapusRtlCloud(r.id);
+      } catch (e) {
+        gagal.push(e instanceof Error ? e.message : "Gagal menghapus RTL.");
+      }
+    }
+
+    if (gagal.length) {
+      // Database belum siap: simpan juga ke browser supaya perubahan tidak
+      // hilang saat halaman dimuat ulang. Akan dipindahkan otomatis nanti.
+      saveRtl(next);
+      setCloudNotice(gagal[0]);
+    } else {
+      setCloudNotice("");
+    }
+  }
 
   function update(fn: (prev: Rtl[]) => Rtl[]) {
-    setItems((prev) => {
-      const next = fn(prev);
-      saveRtl(next);
-      return next;
-    });
+    const prev = itemsRef.current;
+    const next = fn(prev);
+    itemsRef.current = next;
+    setItems(next);
+    void simpanDiff(prev, next);
   }
 
   const log = (r: Rtl, teks: string): Rtl => ({ ...r, riwayat: [{ waktu: stempelWaktu(), teks }, ...r.riwayat] });
@@ -188,11 +376,20 @@ function Halaman({ boot }: { boot: Boot }) {
     return items
       .filter((r) => {
         if (status !== "semua" && statusRtl(r, today) !== status) return false;
-        if (guruF !== "semua" && r.teacherId !== guruF) return false;
+        if (guruF !== "semua") {
+          const namaF = teacherMap.get(guruF)?.name ?? "";
+          if (
+            r.teacherId !== guruF &&
+            !(!!namaF && normNama(r.teacherName ?? "") === normNama(namaF))
+          )
+            return false;
+        }
         if (!cocokWaktu(r, waktu, today)) return false;
         if (!ql) return true;
         const t = teacherMap.get(r.teacherId);
-        return [t?.name ?? "", t?.mapel ?? "", r.target].some((v) => v.toLowerCase().includes(ql));
+        return [r.teacherName ?? "", t?.name ?? "", t?.mapel ?? "", r.target].some((v) =>
+          v.toLowerCase().includes(ql),
+        );
       })
       .sort(urut);
   }, [items, q, status, guruF, waktu, today, teacherMap]);
@@ -256,7 +453,7 @@ function Halaman({ boot }: { boot: Boot }) {
     const baru: Bukti[] = [];
     for (let i = 0; i < daftar.length; i++) {
       const f = daftar[i];
-      const id = `b-${Date.now()}-${i}`;
+      const id = idBuktiBaru(i);
       // Simpan isi file di IndexedDB supaya bukti benar-benar bisa dibuka.
       try {
         await simpanBuktiFile(id, f);
@@ -308,7 +505,31 @@ function Halaman({ boot }: { boot: Boot }) {
   }
 
   function pickTeacher(id: string) {
-    setForm((prev) => ({ ...prev, teacherId: id, coachingId: "" }));
+    setForm((prev) => ({ ...prev, teacherId: id, observasiId: "", coachingId: "" }));
+  }
+
+  // Pilih hasil observasi: isi target, kelas, dan rekomendasi secara otomatis.
+  // Guru tetap bisa mengubah semua isian sebelum menyimpan.
+  function pickObservasi(id: string) {
+    const o = observasi.find((x) => x.id === id);
+    setForm((prev) => {
+      if (!o) return { ...prev, observasiId: id };
+      const saran = (o.rekomendasi || o.catatan || "").trim();
+      const target =
+        prev.target.trim() ||
+        (o.pokok
+          ? `Meningkatkan ${o.pokok}`
+          : `Tindak lanjut observasi ${o.mapel}${o.kelas ? ` kelas ${o.kelas}` : ""}`);
+      return {
+        ...prev,
+        observasiId: id,
+        kelas: prev.kelas.trim() ? prev.kelas : o.kelas,
+        target,
+        rekomendasi: prev.rekomendasi.trim() ? prev.rekomendasi : saran,
+        tahapan: prev.tahapan.trim() ? prev.tahapan : saran,
+        coachingId: "",
+      };
+    });
   }
 
   // Pilih sesi coaching: isi otomatis dari hasil AI Feedback (rencana tindak lanjut)
@@ -320,6 +541,7 @@ function Halaman({ boot }: { boot: Boot }) {
       return {
         ...prev,
         coachingId: id,
+        observasiId: prev.observasiId || c.observasiId || "",
         rekomendasi: rencana,
         tahapan: prev.tahapan.trim() ? prev.tahapan : rencana,
         target: prev.target.trim() ? prev.target : c.topik,
@@ -327,16 +549,43 @@ function Halaman({ boot }: { boot: Boot }) {
     });
   }
 
+  const namaForm =
+    teacherMap.get(form.teacherId)?.name ??
+    items.find((r) => r.teacherId === form.teacherId && r.teacherName)?.teacherName ??
+    "";
+
+  const observasiOpsi = useMemo(
+    () =>
+      observasi
+        .filter(
+          (o) =>
+            o.diterbitkan &&
+            ((!!form.teacherId && o.teacherId === form.teacherId) ||
+              (!!namaForm && normNama(o.teacherName ?? "") === normNama(namaForm)) ||
+              (!!user && user.role === "guru" && o.guruAkunId === user.id)),
+        )
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [observasi, form.teacherId, namaForm, user],
+  );
+
   const coachingOpsi = useMemo(
     () =>
       coaching
-        .filter((c) => c.teacherId === form.teacherId && c.feedback)
+        .filter(
+          (c) =>
+            c.feedback &&
+            ((!!form.teacherId && c.teacherId === form.teacherId) ||
+              (!!namaForm && normNama(c.teacherName) === normNama(namaForm)) ||
+              (!!user &&
+                user.role === "guru" &&
+                (c.guruAkunId === user.id || c.teacherId === "__saya__"))),
+        )
         .sort((a, b) => b.date.localeCompare(a.date)),
-    [coaching, form.teacherId],
+    [coaching, form.teacherId, namaForm, user],
   );
 
   function openNew() {
-    setForm(FORM_KOSONG);
+    setForm({ ...FORM_KOSONG, teacherId: user?.role === "guru" ? selfId : "" });
     setError("");
     setModal({ mode: "new" });
   }
@@ -345,6 +594,7 @@ function Halaman({ boot }: { boot: Boot }) {
     setDetailId(null);
     setForm({
       teacherId: r.teacherId,
+      observasiId: r.observasiId ?? "",
       target: r.target,
       kelas: r.kelas,
       tenggat: r.tenggat,
@@ -374,21 +624,25 @@ function Halaman({ boot }: { boot: Boot }) {
     const editingId = modal.mode === "edit" ? modal.id : null;
     const lama = editingId ? items.find((r) => r.id === editingId) : null;
     const tahapan = daftarTahap.map((teks, i) => ({
-      id: `t-${Date.now()}-${i}`,
+      id: idTahapBaru(i),
       teks,
       selesai: lama?.tahapan.find((t) => t.teks === teks)?.selesai ?? false,
     }));
     const base = {
       teacherId: form.teacherId,
+      // Baris lama bisa merujuk guru yang tidak ada di daftar guru lokal
+      // (mis. coaching dengan teacherId "__saya__"). Jangan hapus namanya.
+      teacherName: teacherMap.get(form.teacherId)?.name ?? lama?.teacherName ?? "",
       target,
       kelas: form.kelas.trim(),
       tenggat: form.tenggat,
       indikator: baris(form.indikator),
       tahapan,
       rekomendasi: baris(form.rekomendasi),
+      observasiId: form.observasiId || null,
       coachingId: form.coachingId || null,
     };
-    const id = editingId ?? `r-${Date.now()}`;
+    const id = editingId ?? idRtlBaru();
 
     update((prev) =>
       editingId
@@ -431,6 +685,16 @@ function Halaman({ boot }: { boot: Boot }) {
           <Plus size={18} aria-hidden="true" /> Buat RTL Manual
         </button>
       </div>
+
+      {cloudNotice && (
+        <div className="rt-cloud-alert" role="alert">
+          <AlertTriangle size={17} aria-hidden="true" />
+          <span>{cloudNotice}</span>
+          <button type="button" onClick={() => setCloudNotice("")} aria-label="Tutup peringatan">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       <div className="rt-layout">
         <div className="rt-main">
@@ -822,16 +1086,38 @@ function Halaman({ boot }: { boot: Boot }) {
                 <div>
                   <div className="rt-block rt-ai">
                     <h4>
-                      <Sparkles size={15} aria-hidden="true" /> Rekomendasi AI (dari Micro-Coaching)
+                      <Sparkles size={15} aria-hidden="true" /> Rekomendasi (Observasi / Micro-Coaching)
                     </h4>
                     {det.rekomendasi.length === 0 ? (
-                      <p className="mc-empty">Belum ada rekomendasi. Pilih sesi coaching saat membuat RTL.</p>
+                      <p className="mc-empty">
+                        Belum ada rekomendasi. Pilih hasil observasi atau sesi coaching saat membuat RTL.
+                      </p>
                     ) : (
                       <ol>
                         {det.rekomendasi.map((x, i) => (
                           <li key={i}>{x}</li>
                         ))}
                       </ol>
+                    )}
+                    {(det.observasiId || det.coachingId) && (
+                      <p className="rt-source">
+                        Sumber:{" "}
+                        {det.observasiId && (
+                          <Link
+                            href={
+                              user?.role === "guru"
+                                ? "/dashboard/hasil-observasi"
+                                : "/dashboard/observasi"
+                            }
+                          >
+                            hasil observasi
+                          </Link>
+                        )}
+                        {det.observasiId && det.coachingId && " dan "}
+                        {det.coachingId && (
+                          <Link href="/dashboard/micro-coaching">sesi micro-coaching</Link>
+                        )}
+                      </p>
                     )}
                   </div>
                   <div className="rt-block">
@@ -932,11 +1218,37 @@ function Halaman({ boot }: { boot: Boot }) {
             <form className="dg-form" onSubmit={handleSubmit} noValidate>
               <label className="dg-field">
                 Guru
-                <select value={form.teacherId} onChange={(e) => pickTeacher(e.target.value)}>
+                <select
+                  value={form.teacherId}
+                  onChange={(e) => pickTeacher(e.target.value)}
+                  disabled={user?.role === "guru"}
+                >
                   <option value="">Pilih guru</option>
                   {guruTerurut.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
+                    </option>
+                  ))}
+                  {!!form.teacherId &&
+                    !guruTerurut.some((t) => t.id === form.teacherId) &&
+                    nameOf(form.teacherId) !== "-" && (
+                      <option value={form.teacherId}>{nameOf(form.teacherId)}</option>
+                    )}
+                </select>
+              </label>
+
+              <label className="dg-field">
+                Ambil dari hasil observasi (opsional)
+                <select value={form.observasiId} onChange={(e) => pickObservasi(e.target.value)}>
+                  <option value="">
+                    {form.teacherId && observasiOpsi.length === 0
+                      ? "Belum ada hasil observasi diterbitkan"
+                      : "Tidak dipilih"}
+                  </option>
+                  {observasiOpsi.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} {o.kelas}
+                      {o.pokok ? ` - ${o.pokok}` : ""}
                     </option>
                   ))}
                 </select>
@@ -998,7 +1310,7 @@ function Halaman({ boot }: { boot: Boot }) {
               </label>
 
               <label className="dg-field">
-                Rekomendasi AI (satu baris satu butir)
+                Rekomendasi observasi / AI (satu baris satu butir)
                 <textarea rows={3} value={form.rekomendasi} onChange={(e) => setField("rekomendasi", e.target.value)} />
               </label>
 

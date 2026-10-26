@@ -56,7 +56,7 @@
 /* ---------- Menu ---------- */
 .sb-nav {
   display: grid; gap: 4px; align-content: start; flex: 1;
-  min-height: 0; margin-top: 32px; padding: 0 20px 0 30px;
+  min-height: 0; margin-top: 32px; padding: 0 14px 0 24px;
   overflow-x: hidden; overflow-y: auto;
   overscroll-behavior: contain;
 }

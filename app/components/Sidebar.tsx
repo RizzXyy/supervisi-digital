@@ -44,7 +44,7 @@ const GROUPS: Group[] = [
   {
     title: "Evaluasi",
     items: [
-      { label: "Hasil Observasi Supervisi", href: "/dashboard/hasil-observasi", icon: ClipboardCheck, roles: ["guru"] },
+      { label: "Hasil Observasi", href: "/dashboard/hasil-observasi", icon: ClipboardCheck, roles: ["guru"] },
       { label: "AI Feedback", href: "/dashboard/ai-feedback", icon: BrainCircuit, roles: ["guru"] },
     ],
   },

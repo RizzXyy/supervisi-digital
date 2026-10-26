@@ -489,6 +489,7 @@ create table if not exists public.rpp (
   file_name      text,
   file_type      text,
   file_size      bigint,
+  video_url      text,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   -- Judul 3..200 karakter (sama dengan tabel aslinya; aplikasi juga
@@ -507,6 +508,7 @@ alter table public.rpp add column if not exists file_path text;
 alter table public.rpp add column if not exists file_name text;
 alter table public.rpp add column if not exists file_type text;
 alter table public.rpp add column if not exists file_size bigint;
+alter table public.rpp add column if not exists video_url text;
 alter table public.rpp add column if not exists created_at timestamptz not null default now();
 alter table public.rpp add column if not exists updated_at timestamptz not null default now();
 

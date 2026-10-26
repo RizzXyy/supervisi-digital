@@ -67,6 +67,14 @@ Isinya:
 Data lama yang masih ada di browser dipindahkan otomatis ke database saat
 halaman Micro-Coaching / AI Feedback dibuka pertama kali.
 
+Tambahan untuk fitur terbaru (jalankan berurutan setelah file di atas):
+
+```
+supabase/migrations/20261026120000_rtl_tracker.sql
+supabase/migrations/20261026130000_rpp_video_ajar.sql
+supabase/migrations/20261026140000_profil_role_guard.sql
+```
+
 > Catatan: file `20261021140000_skema_kanonik.sql` **belum pernah** dijalankan
 > di project ini (cek: fungsi `norm_nama` masih tidak ada). Jalankan juga file
 > itu kalau bentuk tabel `observasi`/`profiles`/`rpp` masih terasa janggal.
@@ -76,10 +84,13 @@ halaman Micro-Coaching / AI Feedback dibuka pertama kali.
 Kalau database lama memang tidak bisa dipakai lagi:
 
 1. `supabase/reset-database.sql` — menghapus tabel `observasi`, `coaching`,
-   `ai_feedback`, `rpp`, `profiles`, dan file di bucket `rpp-files`.
+   `ai_feedback`, `rtl`, `rpp`, `profiles`, dan file di bucket `rpp-files`.
    **Akun login tidak ikut terhapus.**
 2. `supabase/migrations/20261021140000_skema_kanonik.sql` — membangun ulang
    semuanya (termasuk tabel `coaching` & `ai_feedback`).
+3. Tiga migrasi fitur terbaru: `20261026120000_rtl_tracker.sql`,
+   `20261026130000_rpp_video_ajar.sql`, dan
+   `20261026140000_profil_role_guard.sql`.
 
 ### Migrasi lain
 
@@ -95,6 +106,9 @@ Kalau database lama memang tidak bisa dipakai lagi:
 | `20261021130000_observasi_status_constraint.sql` | Observasi: selaraskan CHECK constraint status |
 | `20261021140000_skema_kanonik.sql` | **Skema kanonik seluruh aplikasi (jalan pintas)** |
 | `20261021150000_coaching_dan_ai_feedback.sql` | Micro-Coaching & AI Feedback pindah ke Supabase |
+| `20261026120000_rtl_tracker.sql` | RTL Tracker pindah ke Supabase + RLS guru/kepala sekolah |
+| `20261026130000_rpp_video_ajar.sql` | RPP: kolom tautan video ajar (`video_url`) |
+| `20261026140000_profil_role_guard.sql` | Profil: kunci kolom `role` agar guru tidak bisa menaikkan peran |
 
 ### Verifikasi
 

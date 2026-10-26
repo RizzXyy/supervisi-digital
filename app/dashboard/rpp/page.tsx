@@ -24,6 +24,7 @@ import {
   FileText,
   Info,
   Lightbulb,
+  Play,
   RotateCcw,
   Search,
   Upload,
@@ -54,10 +55,24 @@ const MAPEL_SARAN = [
 
 type Filter = "semua" | RppStatus;
 type DocModal = { mode: "new" } | { mode: "edit"; id: string } | null;
-type FormState = { judul: string; mapel: string; kelas: string };
+type FormState = { judul: string; mapel: string; kelas: string; videoUrl: string };
 type MenuState = { id: string; x: number; y: number } | null;
 
 const pesan = (e: unknown, fallback = "Terjadi kesalahan.") => (e instanceof Error ? e.message : fallback);
+
+// Tautan video ajar hanya boleh http/https (YouTube, Google Drive, dan
+// sejenisnya). Tautan kosong diperbolehkan.
+function rapikanVideoUrl(teks: string): { ok: true; url: string } | { ok: false } {
+  const url = teks.trim();
+  if (!url) return { ok: true, url: "" };
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return { ok: false };
+    return { ok: true, url: u.toString() };
+  } catch {
+    return { ok: false };
+  }
+}
 
 export default function RppPage() {
   const [user, setUser] = useState<Session | null>(null);
@@ -73,7 +88,7 @@ export default function RppPage() {
   const [page, setPage] = useState(1);
 
   const [docModal, setDocModal] = useState<DocModal>(null);
-  const [form, setForm] = useState<FormState>({ judul: "", mapel: "", kelas: "" });
+  const [form, setForm] = useState<FormState>({ judul: "", mapel: "", kelas: "", videoUrl: "" });
   const [file, setFile] = useState<File | null>(null);
   const [drag, setDrag] = useState(false);
   const [error, setError] = useState("");
@@ -229,14 +244,14 @@ export default function RppPage() {
   function openUpload() {
     // mapel & kelas diisi otomatis dari data guru yang sedang login (bisa diubah)
     const me = teachers.find((t) => t.name.trim().toLowerCase() === (user?.name ?? "").trim().toLowerCase());
-    setForm({ judul: "", mapel: me?.mapel ?? "", kelas: me?.kelas ?? "" });
+    setForm({ judul: "", mapel: me?.mapel ?? "", kelas: me?.kelas ?? "", videoUrl: "" });
     setFile(null);
     setError("");
     setDocModal({ mode: "new" });
   }
 
   function openEdit(d: RppDocCloud) {
-    setForm({ judul: d.judul, mapel: d.mapel, kelas: d.kelas });
+    setForm({ judul: d.judul, mapel: d.mapel, kelas: d.kelas, videoUrl: d.videoUrl ?? "" });
     setFile(null);
     setError("");
     setDocModal({ mode: "edit", id: d.id });
@@ -286,6 +301,11 @@ export default function RppPage() {
       setError("Judul minimal 3 karakter.");
       return;
     }
+    const video = rapikanVideoUrl(form.videoUrl);
+    if (!video.ok) {
+      setError("Tautan video ajar harus diawali http:// atau https:// (contoh: https://youtu.be/...).");
+      return;
+    }
     if (docModal.mode === "new" && !file) {
       setError("Pilih file RPP atau Modul Ajar (PDF atau DOCX).");
       return;
@@ -294,7 +314,7 @@ export default function RppPage() {
     setBusy(true);
     try {
       if (docModal.mode === "new" && file) {
-        await createRpp({ judul, mapel, kelas, file });
+        await createRpp({ judul, mapel, kelas, file, videoUrl: video.url });
         setNotice("Dokumen berhasil diunggah dan menunggu verifikasi Kepala Sekolah.");
       } else if (docModal.mode === "edit") {
         const target = docs.find((d) => d.id === docModal.id);
@@ -302,7 +322,7 @@ export default function RppPage() {
           setError("Dokumen tidak ditemukan. Muat ulang halaman.");
           return;
         }
-        await updateRpp(target, { judul, mapel, kelas, file });
+        await updateRpp(target, { judul, mapel, kelas, file, videoUrl: video.url });
         setNotice("Perubahan disimpan dan dokumen diajukan ulang untuk diverifikasi.");
       } else {
         return;
@@ -613,6 +633,17 @@ export default function RppPage() {
                               <small>
                                 {d.fileName} · {formatSize(d.fileSize)}
                               </small>
+                              {d.videoUrl && (
+                                <a
+                                  className="rp-video-note"
+                                  href={d.videoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Play size={12} aria-hidden="true" /> Video ajar
+                                </a>
+                              )}
                               {d.status === "ditolak" && d.catatan && (
                                 <small className="rp-reason">Alasan: {d.catatan}</small>
                               )}
@@ -728,6 +759,18 @@ export default function RppPage() {
       {/* Menu titik tiga */}
       {menu && menuDoc && (
         <div className="rp-menu" role="menu" style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}>
+          {menuDoc.videoUrl && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenu(null);
+                window.open(menuDoc.videoUrl, "_blank", "noopener,noreferrer");
+              }}
+            >
+              Buka video ajar
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={() => { setMenu(null); downloadDoc(menuDoc); }}>
             Unduh
           </button>
@@ -844,6 +887,21 @@ export default function RppPage() {
                   />
                 </label>
               </div>
+
+              <label className="dg-field">
+                Video ajar (opsional)
+                <input
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://youtu.be/... atau tautan Google Drive"
+                  value={form.videoUrl}
+                  onChange={(e) => setForm((p) => ({ ...p, videoUrl: e.target.value }))}
+                />
+                <small className="rp-field-hint">
+                  Tempel tautan video pembelajaran. File video tidak diunggah ke server, jadi kuota penyimpanan tetap aman.
+                </small>
+              </label>
+
               <datalist id="rp-mapel">
                 {mapelSaran.map((m) => (
                   <option key={m} value={m} />

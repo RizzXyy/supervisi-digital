@@ -1,8 +1,7 @@
-// Penyimpanan RPP / Modul Ajar.
-// - Data dokumen (judul, mapel, kelas, status) disimpan di localStorage.
-// - Isi file (PDF/DOCX) disimpan di IndexedDB browser, jadi tombol "Lihat" benar-benar membuka file.
-// Keduanya per-browser. Untuk dipakai bersama (guru unggah, kepala sekolah verifikasi dari
-// perangkat lain), ganti fungsi di file ini dengan Supabase Database + Storage.
+// Tipe & aturan dasar RPP / Modul Ajar.
+// Penyimpanan dokumen sudah pindah ke Supabase (lihat rpp-supabase.ts);
+// file ini menyimpan tipe data, status, validasi file, dan akses file
+// browser untuk data lama (localStorage/IndexedDB) saat impor sekali jalan.
 
 export type RppStatus = "menunggu" | "disetujui" | "ditolak";
 
@@ -15,6 +14,7 @@ export type RppDoc = {
   fileName: string;
   fileType: string;
   fileSize: number; // byte
+  videoUrl: string; // tautan video ajar (boleh kosong)
   uploadedAt: string; // ISO
   status: RppStatus;
   catatan: string; // alasan penolakan

@@ -35,6 +35,7 @@ type Row = {
   file_name: string | null;
   file_type: string | null;
   file_size: number | null;
+  video_url: string | null;
   owner: { name: string } | null;
 };
 
@@ -56,6 +57,7 @@ function toDoc(r: Row): RppDocCloud {
     fileName: r.file_name ?? "",
     fileType: r.file_type ?? "",
     fileSize: r.file_size ?? 0,
+    videoUrl: r.video_url ?? "",
     uploadedAt: r.created_at,
     status: uiStatus(r.status),
     catatan: r.status === "direvisi" ? r.catatan_review : "",
@@ -81,6 +83,8 @@ function safeName(name: string) {
 function pesanDb(msg: string) {
   if (/row-level security|permission denied/i.test(msg)) return "Anda tidak punya izin untuk tindakan ini.";
   if (/rpp_judul_check/i.test(msg)) return "Judul minimal 3 karakter dan maksimal 200 karakter.";
+  if (/video_url/i.test(msg) && /column|schema cache|does not exist/i.test(msg))
+    return "Kolom video ajar belum ada di database. Jalankan file supabase/migrations/20261026130000_rpp_video_ajar.sql di SQL Editor Supabase, lalu muat ulang halaman.";
   return msg;
 }
 
@@ -122,7 +126,13 @@ export async function getRppUrl(path: string, downloadName?: string) {
 }
 
 /* ---------- Tulis ---------- */
-export async function createRpp(input: { judul: string; mapel: string; kelas: string; file: File }) {
+export async function createRpp(input: {
+  judul: string;
+  mapel: string;
+  kelas: string;
+  file: File;
+  videoUrl?: string;
+}) {
   const owner = await currentUserId();
   const id = crypto.randomUUID();
   const path = `${owner}/${id}/${safeName(input.file.name)}`;
@@ -141,6 +151,7 @@ export async function createRpp(input: { judul: string; mapel: string; kelas: st
     file_name: input.file.name,
     file_type: type,
     file_size: input.file.size,
+    video_url: input.videoUrl?.trim() || null,
     status: "diajukan",
   });
   if (ins.error) {
@@ -152,12 +163,13 @@ export async function createRpp(input: { judul: string; mapel: string; kelas: st
 // Setelah diedit, dokumen diajukan ulang (status kembali ke menunggu verifikasi)
 export async function updateRpp(
   current: RppDocCloud,
-  input: { judul: string; mapel: string; kelas: string; file: File | null },
+  input: { judul: string; mapel: string; kelas: string; file: File | null; videoUrl?: string },
 ) {
   const patch: Record<string, unknown> = {
     judul: input.judul,
     mapel: input.mapel,
     kelas: input.kelas,
+    video_url: input.videoUrl?.trim() || null,
     status: "diajukan",
   };
 
@@ -276,6 +288,7 @@ export async function importLocalRpp(cloud: RppDocCloud[]): Promise<{ imported: 
         file_name: nama,
         file_type: type,
         file_size: d.fileSize || blob.size,
+        video_url: d.videoUrl?.trim() || null,
         status: DB_STATUS[d.status] ?? "diajukan",
         catatan_review: d.status === "ditolak" ? (d.catatan ?? "") : "",
         reviewed_at: d.verifiedAt,

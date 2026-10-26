@@ -1,5 +1,7 @@
 // Data & logika fitur RTL Tracker (Rencana Tindak Lanjut).
-// File ini TAMBAHAN. Data disimpan di localStorage dulu, nanti ganti dengan Supabase.
+// File ini menyimpan tipe data, aturan status/progres, dan akses file bukti.
+// Penyimpanan daftar RTL sudah pindah ke Supabase (lihat rtl-supabase.ts);
+// localStorage hanya dipakai sekali untuk memindahkan data lama.
 //
 // Status dan progres TIDAK disimpan: keduanya dihitung dari daftar tahapan dan tenggat,
 // jadi selalu konsisten.
@@ -17,6 +19,20 @@ export const STATUS_RTL_ORDER: StatusRtl[] = ["belum", "proses", "terlambat", "s
 
 export type Tahapan = { id: string; teks: string; selesai: boolean };
 
+// Pembuat id lokal. Ditempatkan di modul (bukan di komponen) supaya tidak
+// dianggap pemanggilan fungsi impure saat render oleh React Compiler.
+export function idRtlBaru() {
+  return `r-${Date.now()}`;
+}
+
+export function idBuktiBaru(indeks: number) {
+  return `b-${Date.now()}-${indeks}`;
+}
+
+export function idTahapBaru(indeks: number) {
+  return `t-${Date.now()}-${indeks}`;
+}
+
 // Catatan: localStorage tidak bisa menyimpan file, jadi yang disimpan hanya nama & ukuran.
 // Saat pindah ke Supabase, unggah file-nya ke Supabase Storage lalu simpan URL-nya di sini.
 export type Bukti = { id: string; nama: string; ukuran: number; tanggal: string };
@@ -26,13 +42,16 @@ export type LogRtl = { waktu: string; teks: string };
 export type Rtl = {
   id: string;
   teacherId: string;
+  teacherName?: string; // nama guru (disimpan di cloud agar tetap terbaca di perangkat lain)
+  guruAkunId?: string; // uuid akun guru (dipakai kebijakan RLS)
   target: string;
   kelas: string;
   tenggat: string; // "YYYY-MM-DD"
   dibuat: string; // "YYYY-MM-DD"
   indikator: string[];
   tahapan: Tahapan[];
-  rekomendasi: string[]; // rekomendasi AI dari sesi micro-coaching
+  rekomendasi: string[]; // rekomendasi dari observasi / sesi micro-coaching
+  observasiId?: string | null; // baris observasi sumber (bila ada)
   coachingId: string | null;
   catatan: string; // catatan guru
   bukti: Bukti[];

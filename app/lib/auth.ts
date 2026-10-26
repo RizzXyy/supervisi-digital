@@ -206,6 +206,11 @@ function pesanSimpanProfil(message: string): string {
 // Email TIDAK disimpan dari form: nilainya selalu disinkronkan dari akun Auth
 // supaya tidak ada dua sumber kebenaran untuk email.
 //
+// Peran (role) juga TIDAK diambil dari form. Kalau baris profil sudah ada,
+// kolom role tidak ikut di-update supaya guru tidak bisa menaikkan perannya
+// sendiri lewat request yang dimodifikasi. Untuk baris baru, peran diambil
+// dari metadata akun (atau default "guru").
+//
 // Kalau kolom opsional belum ada di database, simpan ulang TANPA kolom itu
 // (satu per satu) supaya nama/NIP/peran tetap tersimpan; halaman menampilkan
 // peringatan bahwa sebagian data belum bisa disimpan.
@@ -213,7 +218,6 @@ export async function simpanProfilSaya(input: {
   name: string;
   nip: string;
   ajaran: Ajaran[];
-  role: Role;
 }): Promise<{ ok: boolean; error?: string; peringatan?: string }> {
   const supabase = createClient();
   const {
@@ -227,8 +231,18 @@ export async function simpanProfilSaya(input: {
     email: user.email ?? null,
     nip: input.nip || null,
     ajaran: input.ajaran,
-    role: input.role,
   };
+
+  // Hanya saat baris profil belum ada: tentukan peran awal dari metadata
+  // akun. Jangan pernah mempercayai peran yang dikirim dari form.
+  const { data: sudahAda, error: cekError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!cekError && !sudahAda) {
+    baris.role = user.user_metadata?.role === "kepala_sekolah" ? "kepala_sekolah" : "guru";
+  }
 
   const tanpaKolom: string[] = [];
   // Maksimal percobaan = 1 (penuh) + jumlah kolom opsional.

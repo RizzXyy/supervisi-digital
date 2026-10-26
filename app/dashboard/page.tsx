@@ -29,6 +29,7 @@ import {
   type Supervision,
 } from "../lib/dashboard-data";
 import { buatNotifikasi, loadRtl, type Notifikasi } from "../lib/rtl-data";
+import { listRtlCloud } from "../lib/rtl-supabase";
 import "./dashboard-home.css";
 
 const KATEGORI_ICON: Record<KategoriKey, typeof Star> = {
@@ -156,11 +157,19 @@ export default function DashboardPage() {
       setUser(s);
       setUserReady(true);
     });
-    // Nanti: ganti dengan fetch dari Supabase
     queueMicrotask(() => {
       if (!active) return;
       setData(getDashboard());
-      setNotif(buatNotifikasi(loadRtl(), toDateKey(new Date())));
+      const today = toDateKey(new Date());
+      // Notifikasi RTL memakai data cloud; localStorage hanya cadangan bila
+      // tabel/migrasi belum tersedia.
+      void listRtlCloud()
+        .then((rows) => {
+          if (active) setNotif(buatNotifikasi(rows, today));
+        })
+        .catch(() => {
+          if (active) setNotif(buatNotifikasi(loadRtl(), today));
+        });
     });
     return () => {
       active = false;
