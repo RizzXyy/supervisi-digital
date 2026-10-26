@@ -7,6 +7,8 @@
   --g-line: #e5ebf5;
 
   max-width: 1000px;
+  /* Beri jarak ekstra dari sidebar agar judul tidak terlihat menempel. */
+  padding-left: 20px;
   color: var(--g-text);
   animation: masukNaik 0.34s var(--ease) both;
 }
@@ -306,6 +308,9 @@
 }
 
 @media (max-width: 800px) {
+  .page {
+    padding-left: 12px;
+  }
   .profileRow {
     flex-direction: column;
     gap: 18px;
