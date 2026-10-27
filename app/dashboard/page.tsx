@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getSession, type Session } from "../lib/auth";
 import {
+  BULAN_LENGKAP,
   SUPERVISOR,
   daysUntil,
   formatTanggal,
@@ -30,6 +31,8 @@ import {
 } from "../lib/dashboard-data";
 import { buatNotifikasi, loadRtl, type Notifikasi } from "../lib/rtl-data";
 import { listRtlCloud } from "../lib/rtl-supabase";
+import { listObservasiCloud } from "../lib/observasi-supabase";
+import { hitungSkor, type Observasi } from "../lib/observasi-data";
 import "./dashboard-home.css";
 
 const KATEGORI_ICON: Record<KategoriKey, typeof Star> = {
@@ -159,7 +162,7 @@ export default function DashboardPage() {
     });
     queueMicrotask(() => {
       if (!active) return;
-      setData(getDashboard());
+      const base = getDashboard();
       const today = toDateKey(new Date());
       // Notifikasi RTL memakai data cloud; localStorage hanya cadangan bila
       // tabel/migrasi belum tersedia.
@@ -169,6 +172,31 @@ export default function DashboardPage() {
         })
         .catch(() => {
           if (active) setNotif(buatNotifikasi(loadRtl(), today));
+        });
+      // Grafik skor ambil dari observasi cloud
+      void listObservasiCloud()
+        .then((obs: Observasi[]) => {
+          if (!active) return;
+          const byMonth = new Map<string, number[]>();
+          for (const o of obs) {
+            if (!o.date) continue;
+            // hitung skor dari jawaban (sesuai instrumen)
+            const skor = hitungSkor(o);
+            if (!Number.isFinite(skor)) continue;
+            const key = o.date.slice(0, 7); // YYYY-MM
+            byMonth.set(key, [...(byMonth.get(key) ?? []), skor]);
+          }
+          const trend = [...byMonth.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .slice(-4)
+            .map(([key, vals]) => ({
+              label: BULAN_LENGKAP[Number(key.split("-")[1]) - 1]?.slice(0, 3) || key,
+              value: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10,
+            }));
+          setData({ ...base, trend });
+        })
+        .catch(() => {
+          if (active) setData(base);
         });
     });
     return () => {
