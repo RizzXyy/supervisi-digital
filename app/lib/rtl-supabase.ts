@@ -228,6 +228,78 @@ export async function hapusRtlCloud(id: string) {
 // RTL lama di localStorage dipindahkan ke Supabase saat halaman dibuka.
 // Berhasil -> salinan yang sudah pindah dibersihkan dari browser; gagal ->
 // tetap di browser dan dicoba lagi kunjungan berikutnya.
+function isUuidValid(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const s = v.trim();
+  if (!s) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+}
+
+function normalisasiStatusLama(v: unknown): "belum_mulai" | "proses" | "selesai" {
+  if (typeof v !== "string") return "belum_mulai";
+  const s = v.trim().toLowerCase();
+  if (!s) return "belum_mulai";
+  if (s === "belum_mulai" || s === "belum" || s === "belum dimulai") return "belum_mulai";
+  if (s === "proses" || s === "dalam proses" || s === "in_progress" || s === "sedang" || s === "berjalan") return "proses";
+  if (s === "selesai" || s === "done" || s === "completed" || s === "tuntas") return "selesai";
+  // beberapa varian bahasa Indonesia
+  if (s.includes("selesai")) return "selesai";
+  if (s.includes("proses")) return "proses";
+  if (s.includes("belum")) return "belum_mulai";
+  return "belum_mulai";
+}
+
+function normalisasiProgres(v: unknown): number {
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const n = Math.round(v);
+    if (n < 0) return 0;
+    if (n > 100) return 100;
+    return n;
+  }
+  if (typeof v === "string") {
+    const m = v.match(/-?\d+(?:\.\d+)?/);
+    if (m) {
+      const n = Math.round(Number(m[0]));
+      if (Number.isFinite(n)) {
+        if (n < 0) return 0;
+        if (n > 100) return 100;
+        return n;
+      }
+    }
+  }
+  return 0;
+}
+
+async function profilAda(id: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from("profiles").select("id").eq("id", id).maybeSingle();
+    if (error) return false;
+    return !!data?.id;
+  } catch {
+    return false;
+  }
+}
+
+async function observasiAda(id: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from("observasi").select("id").eq("id", id).maybeSingle();
+    if (error) return false;
+    return !!data?.id;
+  } catch {
+    return false;
+  }
+}
+
+async function rubrikAspekAda(id: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from("rubrik_aspek").select("id").eq("id", id).maybeSingle();
+    if (error) return false;
+    return !!data?.id;
+  } catch {
+    return false;
+  }
+}
+
 export async function importLocalRtl(
   cloud: Rtl[],
   opts: {
@@ -257,21 +329,107 @@ export async function importLocalRtl(
   let failed = 0;
 
   for (const r of lokal) {
-    if (sudahAda.has(idStabil(r.id))) continue; // sudah ada di Supabase
+    const idStab = idStabil(r.id);
+    if (sudahAda.has(idStab)) continue; // sudah ada di Supabase (cegah insert ganda)
+
     const nama = (r.teacherName || opts.teacherName(r.teacherId) || "").trim();
-    const akun = opts.guruAkunId(r.teacherId, nama);
+    let akun = opts.guruAkunId(r.teacherId, nama) as string | undefined;
+
     try {
-      const { error } = await supabase
-        .from("rtl")
-        .upsert(keRow({ ...r, teacherName: nama, guruAkunId: akun }, owner));
-      if (error) throw new Error(pesanDb(error.message));
-      sudahAda.add(idStabil(r.id));
-      berhasil.push({ ...r, teacherName: nama, guruAkunId: akun });
+      // Siapkan payload dasar sesuai skema saat ini
+      const baseRow = keRow({ ...r, teacherName: nama, guruAkunId: akun }, owner);
+
+      // Normalisasi sesuai instruksi
+      const payload: any = { ...baseRow };
+
+      // id: jika bukan UUID valid, jangan kirim id agar database membuat sendiri
+      if (!isUuidValid(payload.id)) {
+        delete payload.id;
+      } else {
+        payload.id = String(payload.id).trim();
+      }
+
+      // dibuat_oleh dan guru_id
+      let guruIdCandidate: string | undefined = payload.guru_id;
+      if (!isUuidValid(guruIdCandidate)) guruIdCandidate = undefined;
+      if (!guruIdCandidate && isUuidValid(akun)) guruIdCandidate = akun;
+      if (!guruIdCandidate && isUuidValid(owner)) guruIdCandidate = owner;
+      // Jika guru_id tidak ada di tabel profiles, lewati baris itu
+      if (guruIdCandidate && isUuidValid(guruIdCandidate)) {
+        const ada = await profilAda(guruIdCandidate);
+        if (!ada) {
+          throw new Error("guru_id tidak ditemukan di tabel profiles");
+        }
+        payload.guru_id = guruIdCandidate;
+      } else {
+        throw new Error("guru_id/akun tidak valid");
+      }
+
+      // supervisor_id/created_by tidak ada di skema kita, tapi jaga-jaga kalau ada field dibuat_oleh
+      if ("dibuat_oleh" in payload) {
+        let db: any = (payload as any).dibuat_oleh;
+        if (!isUuidValid(db)) db = owner;
+        if (isUuidValid(db)) {
+          const ada = await profilAda(db);
+          (payload as any).dibuat_oleh = ada ? db : owner;
+        } else {
+          delete (payload as any).dibuat_oleh;
+        }
+      }
+
+      // observasi_id
+      if ("observasi_id" in payload) {
+        const oid = payload.observasi_id;
+        if (isUuidValid(oid)) {
+          const ada = await observasiAda(oid);
+          payload.observasi_id = ada ? oid : null;
+        } else {
+          payload.observasi_id = null;
+        }
+      }
+
+      // aspek_id jika ada
+      if ("aspek_id" in payload) {
+        const aid = (payload as any).aspek_id;
+        if (isUuidValid(aid)) {
+          const ada = await rubrikAspekAda(aid);
+          (payload as any).aspek_id = ada ? aid : null;
+        } else {
+          (payload as any).aspek_id = null;
+        }
+      }
+
+      // status jika ada kolomnya
+      if ("status" in payload) {
+        (payload as any).status = normalisasiStatusLama((payload as any).status);
+      }
+
+      // progres jika ada kolomnya
+      if ("progres" in payload) {
+        (payload as any).progres = normalisasiProgres((payload as any).progres);
+      }
+
+      const { error } = await supabase.from("rtl").upsert(payload);
+      if (error) {
+        console.error("[rtl] impor lokal gagal", {
+          rtlId: r.id,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          payload,
+        });
+        throw new Error(pesanDb(error.message));
+      }
+      sudahAda.add(idStab);
+      berhasil.push({ ...r, teacherName: nama, guruAkunId: payload.guru_id });
       imported += 1;
     } catch (e) {
       console.error("[rtl] impor lokal gagal", {
         rtlId: r.id,
         message: e instanceof Error ? e.message : String(e),
+        error: e,
+        details: (e as any)?.details,
+        hint: (e as any)?.hint,
       });
       failed += 1;
       sisa.push(r); // tetap di browser agar tidak hilang
