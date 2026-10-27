@@ -48,6 +48,13 @@ function parseJson(text: string): Record<string, unknown> {
   return JSON.parse(bersih) as Record<string, unknown>;
 }
 
+const BATAS_WAKTU_MS = 25_000; // route memakai maxDuration 30 detik
+const PERCOBAAN_MAKS = 3;
+
+function jeda(ms: number): Promise<void> {
+  return new Promise((selesai) => setTimeout(selesai, ms));
+}
+
 export async function buatFeedbackGemini(payload: FeedbackPayload): Promise<HasilAi> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) {
@@ -60,35 +67,78 @@ export async function buatFeedbackGemini(payload: FeedbackPayload): Promise<Hasi
       500
     );
   }
-  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  // Model 3.8/3.7 sering dibalas 503 "high demand" oleh Google. 3.5-flash
+  // saat ini paling stabil; tetap bisa diubah lewat .env.local.
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
-  let res: Response;
-  try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: `Data observasi (JSON):\n${JSON.stringify(payload)}` }] }],
-        generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-  } catch (e) {
-    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
-      throw new AiError("Gemini terlalu lama merespons. Coba lagi.", 504);
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents: [{ role: "user", parts: [{ text: `Data observasi (JSON):\n${JSON.stringify(payload)}` }] }],
+    generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
+  });
+
+  const mulai = Date.now();
+  let res: Response | null = null;
+
+  for (let percobaan = 1; percobaan <= PERCOBAAN_MAKS; percobaan++) {
+    const sisa = BATAS_WAKTU_MS - (Date.now() - mulai);
+    if (sisa <= 1_000) break;
+
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body,
+        signal: AbortSignal.timeout(sisa),
+      });
+    } catch (e) {
+      const habisWaktu = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+      console.error(
+        `[ai-feedback] Gemini gagal dihubungi (percobaan ${percobaan}/${PERCOBAAN_MAKS}):`,
+        habisWaktu ? "timeout" : e
+      );
+      if (percobaan < PERCOBAAN_MAKS && BATAS_WAKTU_MS - (Date.now() - mulai) > 2_000) {
+        await jeda(500);
+        continue;
+      }
+      throw habisWaktu
+        ? new AiError("Gemini terlalu lama merespons. Coba lagi.", 504)
+        : new AiError("Tidak bisa menghubungi Gemini. Periksa koneksi server.", 502);
     }
-    throw new AiError("Tidak bisa menghubungi Gemini. Periksa koneksi server.", 502);
+
+    if (res.ok) break;
+
+    // 500/503 biasanya sementara (lonjakan permintaan), jadi ulangi sebentar lagi.
+    // 429 tidak diulang: biasanya kuota/rate limit yang butuh jeda lebih lama.
+    if (res.status === 500 || res.status === 503) {
+      const detail = await res.text().catch(() => "");
+      console.error(
+        `[ai-feedback] Gemini sibuk (percobaan ${percobaan}/${PERCOBAAN_MAKS}):`,
+        res.status,
+        detail.slice(0, 300)
+      );
+      if (percobaan < PERCOBAAN_MAKS && BATAS_WAKTU_MS - (Date.now() - mulai) > 3_000) {
+        await jeda(1_500 * percobaan);
+        continue;
+      }
+      if (res.status === 503) throw new AiError("Layanan Gemini sedang sibuk. Coba lagi beberapa saat.", 503);
+      throw new AiError("Layanan Gemini sedang bermasalah. Coba lagi beberapa saat.", 502);
+    }
+
+    break;
   }
+
+  if (!res) throw new AiError("Gemini terlalu lama merespons. Coba lagi.", 504);
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     console.error("Gemini error", res.status, detail.slice(0, 500));
     if (res.status === 429) throw new AiError("Kuota Gemini habis atau terlalu banyak permintaan. Coba lagi sebentar.", 429);
+    if (res.status === 503) throw new AiError("Layanan Gemini sedang sibuk. Coba lagi beberapa saat.", 503);
     if (res.status === 401 || res.status === 403) throw new AiError("API key Gemini tidak valid atau tidak punya akses.", 502);
     if (res.status === 404)
       throw new AiError(
-        `Model "${model}" tidak tersedia. Ubah GEMINI_MODEL di .env.local (mis. gemini-3.8-flash) lalu restart server.`,
+        `Model "${model}" tidak tersedia. Ubah GEMINI_MODEL di .env.local (mis. gemini-3.5-flash) lalu restart server.`,
         502
       );
     throw new AiError("Gemini menolak permintaan. Cek log server untuk detailnya.", 502);

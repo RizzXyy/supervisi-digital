@@ -113,6 +113,8 @@ function pesanDb(msg: string) {
     msg.match(/column "([^"]+)"[^.]*does not exist/i)?.[1];
   if (kolom)
     return `Kolom '${kolom}' belum ada di tabel database. Jalankan file supabase/migrations/20261021150000_coaching_dan_ai_feedback.sql di SQL Editor Supabase (project yang sama), lalu muat ulang halaman.`;
+  if (/could not find the table|schema cache/i.test(msg))
+    return "Tabel 'public.coaching' belum ada di database. Jalankan file supabase/migrations/20261021150000_coaching_dan_ai_feedback.sql di SQL Editor Supabase, lalu muat ulang halaman.";
   if (/does not exist/i.test(msg))
     return "Struktur database belum sesuai dengan kode. Jalankan file migrasi terbaru di supabase/migrations lewat SQL Editor Supabase, lalu muat ulang halaman.";
   return msg;
