@@ -22,8 +22,10 @@ import {
 import { fromDateKey, formatTanggalPendek, loadTeachers, toDateKey, type Teacher } from "../../lib/dashboard-data";
 import { hitungSkor, inisial, type Observasi } from "../../lib/observasi-data";
 import { listObservasiCloud } from "../../lib/observasi-supabase";
+import { listCoachingCloud } from "../../lib/coaching-supabase";
 import { STATUS_COACHING, loadCoaching, type Coaching } from "../../lib/coaching-data";
 import { STATUS_RTL, loadRtl, progres, statusRtl, type Rtl, type StatusRtl } from "../../lib/rtl-data";
+import { listRtlCloud } from "../../lib/rtl-supabase";
 import { useRoleGuard } from "../../lib/use-role-guard";
 import type { Role } from "../../lib/auth";
 import {
@@ -151,16 +153,19 @@ export default function LaporanPage() {
 
   useEffect(() => {
     let active = true;
-    // Observasi diambil dari Supabase; data lain masih dari browser.
-    listObservasiCloud()
-      .catch(() => [])
-      .then((observasi) => {
+    // Observasi & RTL diambil dari Supabase; data lain masih dari browser.
+    Promise.all([
+      listObservasiCloud().catch(() => []),
+      listCoachingCloud().catch(() => loadCoaching()),
+      listRtlCloud().catch(() => loadRtl()),
+    ])
+      .then(([observasi, coachingCloud, rtlCloud]) => {
         if (!active) return;
         setBoot({
           teachers: loadTeachers(),
           observasi,
-          coaching: loadCoaching(),
-          rtl: loadRtl(),
+          coaching: coachingCloud.length ? coachingCloud : loadCoaching(),
+          rtl: rtlCloud.length ? rtlCloud : loadRtl(),
           now: new Date(),
         });
       });
