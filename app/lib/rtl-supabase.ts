@@ -191,7 +191,8 @@ function gantiIdLokal(lama: string, baru: string) {
     berubah = true;
     return { ...r, id: baru };
   });
-  if (berubah) saveRtl(next);
+  if (!berubah) return;
+  if (!saveRtl(next)) console.error("[rtl] gagal memperbarui id lokal", { lama, baru });
 }
 
 const teksBersih = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -273,6 +274,36 @@ function judulDari(r: Rtl): string {
   return judul.length >= 3 ? judul : "RTL tanpa judul";
 }
 
+function normKunci(teks: unknown) {
+  return teksBersih(teks).toLowerCase().replace(/\s+/g, " ");
+}
+
+// Kunci duplikat yang diminta: guru_id + target perbaikan + tenggat.
+// Target dinormalkan agar perbedaan spasi/huruf kecil tidak dianggap baru.
+function kunciDuplikat(guruId: unknown, target: unknown, tenggat: unknown) {
+  return JSON.stringify([
+    typeof guruId === "string" ? guruId.trim().toLowerCase() : "",
+    normKunci(target),
+    teksBersih(tenggat),
+  ]);
+}
+
+// Hapus salinan lokal hanya untuk id yang sudah dikonfirmasi ada di database.
+// Mengembalikan false kalau penulisan localStorage gagal.
+function hapusLokalRtl(...ids: Array<string | null | undefined>): boolean {
+  if (typeof window === "undefined") return true;
+  const set = new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0));
+  if (!set.size) return true;
+  const semua = loadRtl();
+  const sisa = semua.filter((r) => !set.has(r.id));
+  if (sisa.length === semua.length) return true; // sudah tidak ada
+  if (saveRtl(sisa)) return true;
+  console.error("[rtl] gagal menghapus salinan lokal setelah database mengonfirmasi", {
+    ids: [...set],
+  });
+  return false;
+}
+
 // SATU tempat pembentuk baris public.rtl, dipakai simpanRtlCloud DAN importLocalRtl.
 // Kolom wajib tetap diisi; kolom lama yang masih NOT NULL (mis. "judul") juga
 // diberi nilai cadangan yang masuk akal.
@@ -331,7 +362,13 @@ function normalisasiBaris(r: Rtl, ownerId: string, guruAkunId?: string) {
   return { row, id, judul };
 }
 
-type ErrorDb = Error & { code?: string; details?: string; hint?: string };
+type ErrorDb = Error & {
+  code?: string;
+  details?: string;
+  hint?: string;
+  rawMessage?: string;
+  payload?: Record<string, unknown>;
+};
 
 function namaKolomDariPesan(msg: string) {
   return (
@@ -368,11 +405,16 @@ function pesanDb(msg: string, code?: string) {
   return msg;
 }
 
-function errorDb(error: { message: string; code?: string; details?: string; hint?: string }): ErrorDb {
+function errorDb(
+  error: { message: string; code?: string; details?: string; hint?: string },
+  payload?: Record<string, unknown>,
+): ErrorDb {
   const e = new Error(pesanDb(error.message, error.code)) as ErrorDb;
   e.code = error.code;
   e.details = error.details;
   e.hint = error.hint;
+  e.rawMessage = error.message;
+  e.payload = payload;
   return e;
 }
 
@@ -552,6 +594,7 @@ async function observasiAda(id: string): Promise<boolean> {
 
 export type GagalImporRtl = {
   id: string;
+  idLama?: string;
   judul: string;
   code: string;
   message: string;
@@ -564,14 +607,24 @@ export type HasilImporRtl = {
   gagal: GagalImporRtl[];
 };
 
-export async function importLocalRtl(
-  cloud: Rtl[],
-  opts: {
-    teacherName: (teacherId: string) => string | undefined;
-    guruAkunId: (teacherId: string, teacherName: string) => string | undefined;
-    filter?: (r: Rtl) => boolean;
-  },
-): Promise<HasilImporRtl> {
+type OpsiImporRtl = {
+  teacherName: (teacherId: string) => string | undefined;
+  guruAkunId: (teacherId: string, teacherName: string) => string | undefined;
+  filter?: (r: Rtl) => boolean;
+};
+
+let imporAktif: Promise<HasilImporRtl> | null = null;
+
+export function importLocalRtl(cloud: Rtl[], opts: OpsiImporRtl): Promise<HasilImporRtl> {
+  // Cegah dua impor berjalan bersamaan (React Strict Mode atau klik "Coba lagi").
+  if (imporAktif) return imporAktif;
+  imporAktif = jalankanImporLocalRtl(cloud, opts).finally(() => {
+    imporAktif = null;
+  });
+  return imporAktif;
+}
+
+async function jalankanImporLocalRtl(cloud: Rtl[], opts: OpsiImporRtl): Promise<HasilImporRtl> {
   if (typeof window === "undefined") {
     return { imported: 0, failed: 0, items: cloud, gagal: [] };
   }
@@ -589,7 +642,9 @@ export async function importLocalRtl(
     idBerubah = true;
     return { ...r, id };
   });
-  if (idBerubah) saveRtl(semua);
+  if (idBerubah && !saveRtl(semua)) {
+    console.error("[rtl] gagal menyimpan id baru ke localStorage");
+  }
 
   const lokal = opts.filter ? semua.filter(opts.filter) : semua;
   if (!lokal.length) return { imported: 0, failed: 0, items: cloud, gagal: [] };
@@ -600,39 +655,93 @@ export async function importLocalRtl(
   } catch (e) {
     console.error("[rtl] impor lokal dibatalkan: sesi tidak ditemukan", e);
     const pesan = e instanceof Error ? e.message : "Sesi login tidak ditemukan. Silakan login ulang.";
+    for (const r of lokal) {
+      console.error("[rtl] impor lokal gagal", {
+        rtlId: r.id,
+        message: pesan,
+        details: undefined,
+        code: "AUTH",
+        payload: { ...r },
+      });
+    }
     return {
       imported: 0,
       failed: lokal.length,
       items: cloud,
-      gagal: lokal.map((r) => ({ id: r.id, judul: judulDari(r), code: "AUTH", message: pesan })),
+      gagal: lokal.map((r) => ({
+        id: r.id,
+        idLama: idLamaPerBaru.get(r.id),
+        judul: judulDari(r),
+        code: "AUTH",
+        message: pesan,
+      })),
     };
   }
 
   const sudahAda = new Set(cloud.map((r) => r.id.toLowerCase()));
-  const sisa = semua.filter((r) => !lokal.includes(r));
+  const kunciDb = new Set<string>();
+  for (const r of cloud) kunciDb.add(kunciDuplikat(r.guruAkunId, r.target, r.tenggat));
+
+  // Ambil kunci duplikat terbaru langsung dari database. Kalau query gagal,
+  // impor tetap lanjut memakai snapshot cloud di atas.
+  try {
+    const { data, error } = await supabase.from("rtl").select("id, guru_id, target, tenggat");
+    if (error) {
+      console.error("[rtl] gagal memeriksa duplikat di database", {
+        message: error.message,
+        details: error.details,
+        code: error.code,
+      });
+    } else {
+      const baris = (data ?? []) as Array<{
+        id: string;
+        guru_id: string | null;
+        target: string | null;
+        tenggat: string | null;
+      }>;
+      for (const row of baris) kunciDb.add(kunciDuplikat(row.guru_id, row.target, row.tenggat));
+    }
+  } catch (e) {
+    console.error("[rtl] gagal memeriksa duplikat di database", e);
+  }
+
   const berhasil: Rtl[] = [];
   const gagal: GagalImporRtl[] = [];
   let imported = 0;
 
   for (const r of lokal) {
-    // Cegah insert ganda: cek UUID baru maupun UUID deterministik versi lama.
     const asal = idLamaPerBaru.get(r.id);
-    if (sudahAda.has(r.id.toLowerCase()) || (asal && sudahAda.has(idStabil(asal)))) continue;
+
+    // Sudah ada berdasarkan id (UUID baru maupun UUID deterministik versi lama).
+    if (sudahAda.has(r.id.toLowerCase()) || (asal && sudahAda.has(idStabil(asal)))) {
+      hapusLokalRtl(r.id, asal);
+      continue;
+    }
 
     const nama = (r.teacherName || opts.teacherName(r.teacherId) || "").trim();
     const akun = opts.guruAkunId(r.teacherId, nama) as string | undefined;
+    let payload: Record<string, unknown> = { ...r };
 
     try {
       const { row, id } = normalisasiBaris({ ...r, teacherName: nama, guruAkunId: akun }, owner, akun);
-      const payload = { ...row };
+      payload = { ...row };
 
       // guru_id wajib UUID yang benar-benar ada di profiles.
       let guruId = typeof payload.guru_id === "string" && isUuid(payload.guru_id) ? payload.guru_id : undefined;
       if (!guruId && isUuid(akun)) guruId = akun;
       if (!guruId && isUuid(owner)) guruId = owner;
       if (!guruId) throw errorApp("guru_id/akun tidak valid");
-      if (!(await profilAda(guruId))) throw errorApp("guru_id tidak ditemukan di tabel profiles");
       payload.guru_id = guruId;
+
+      // Duplikat dicek SEBELUM insert: guru_id + target perbaikan + tenggat.
+      const kunci = kunciDuplikat(guruId, payload.target, payload.tenggat);
+      if (kunciDb.has(kunci)) {
+        hapusLokalRtl(r.id, asal);
+        imported += 1; // sudah ada di database, anggap berhasil
+        continue;
+      }
+
+      if (!(await profilAda(guruId))) throw errorApp("guru_id tidak ditemukan di tabel profiles");
 
       // observasi_id: kosongkan bila baris sumbernya tidak ada.
       const oid = payload.observasi_id;
@@ -643,18 +752,11 @@ export async function importLocalRtl(
       }
 
       const { error } = await upsertToleran(payload);
-      if (error) {
-        console.error("[rtl] impor lokal gagal", {
-          rtlId: r.id,
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-        throw errorDb(error);
-      }
+      if (error) throw errorDb(error, payload);
 
+      kunciDb.add(kunci);
       sudahAda.add(id.toLowerCase());
+      hapusLokalRtl(r.id, asal);
       berhasil.push({ ...r, id, teacherName: nama, guruAkunId: guruId });
       imported += 1;
     } catch (e) {
@@ -663,16 +765,14 @@ export async function importLocalRtl(
       const message = err.message || "Gagal memindahkan RTL.";
       console.error("[rtl] impor lokal gagal", {
         rtlId: r.id,
-        code,
-        message,
+        message: err.rawMessage ?? message,
         details: err.details,
-        hint: err.hint,
+        code,
+        payload,
       });
-      gagal.push({ id: r.id, judul: judulDari(r), code, message });
-      sisa.push(r); // tetap di browser agar tidak hilang
+      gagal.push({ id: r.id, idLama: asal, judul: judulDari(r), code, message });
     }
   }
 
-  saveRtl(sisa);
   return { imported, failed: gagal.length, items: [...cloud, ...berhasil], gagal };
 }

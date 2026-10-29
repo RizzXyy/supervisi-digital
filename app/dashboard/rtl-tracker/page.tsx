@@ -35,6 +35,7 @@ import {
   formatUkuran,
   gradienDonat,
   hapusBuktiFile,
+  hapusRtlLokalGagal,
   hitungStatus,
   idBuktiBaru,
   idRtlBaru,
@@ -433,6 +434,22 @@ function Halaman({ boot }: { boot: Boot }) {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  function hapusDataLama() {
+    const ids = importGagal.flatMap((g) => [g.id, g.idLama]);
+    const hasil = hapusRtlLokalGagal(ids);
+    if (hasil.ok) {
+      setImportGagal([]);
+      setDetailTerbuka(false);
+      setCloudNotice("");
+      return;
+    }
+    setCloudNotice(
+      hasil.backup
+        ? "Data lama gagal dihapus dari browser. Salinan cadangan sudah dibuat."
+        : "Cadangan data lama gagal dibuat, jadi data tidak dihapus.",
+    );
+  }
+
   const log = (r: Rtl, teks: string): Rtl => ({ ...r, riwayat: [{ waktu: stempelWaktu(), teks }, ...r.riwayat] });
 
   const filtered = useMemo(() => {
@@ -765,6 +782,14 @@ function Halaman({ boot }: { boot: Boot }) {
                 </button>
                 <button type="button" onClick={unduhLokal}>
                   Unduh data lokal (JSON)
+                </button>
+                <button
+                  type="button"
+                  className="rt-cloud-hapus"
+                  onClick={hapusDataLama}
+                  title="Salinan disimpan ke localStorage supervisi.rtl.v1_gagal_backup"
+                >
+                  Hapus data lama
                 </button>
               </div>
             )}

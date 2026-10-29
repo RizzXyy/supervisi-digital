@@ -748,6 +748,13 @@
   opacity: 0.6;
   cursor: wait;
 }
+.rt-cloud-tools button.rt-cloud-hapus {
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+.rt-cloud-tools button.rt-cloud-hapus:hover:not(:disabled) {
+  background: #fee2e2;
+}
 .rt-cloud-alert > button {
   display: grid;
   place-items: center;

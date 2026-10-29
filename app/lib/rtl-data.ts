@@ -60,12 +60,13 @@ export type Rtl = {
   riwayat: LogRtl[]; // terbaru di depan
 };
 
-const KEY = "supervisi.rtl.v1";
+export const KEY_RTL = "supervisi.rtl.v1";
+export const KEY_RTL_GAGAL_BACKUP = `${KEY_RTL}_gagal_backup`;
 
 export function loadRtl(): Rtl[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(KEY_RTL);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed as Rtl[];
@@ -76,12 +77,57 @@ export function loadRtl(): Rtl[] {
   return [];
 }
 
-export function saveRtl(list: Rtl[]) {
+export function saveRtl(list: Rtl[]): boolean {
+  if (typeof window === "undefined") return false;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(list));
+    window.localStorage.setItem(KEY_RTL, JSON.stringify(list));
+    return true;
   } catch {
     /* penyimpanan penuh atau diblokir */
+    return false;
   }
+}
+
+export type HasilHapusRtlLokal = {
+  dihapus: number;
+  backup: boolean;
+  ok: boolean;
+};
+
+// Hapus hanya baris lama yang gagal, setelah menyalinnya ke key backup.
+// Kalau backup gagal, tidak ada data yang dihapus.
+export function hapusRtlLokalGagal(ids: Array<string | null | undefined>): HasilHapusRtlLokal {
+  if (typeof window === "undefined") return { dihapus: 0, backup: false, ok: false };
+
+  const akanDihapusId = new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0));
+  if (!akanDihapusId.size) return { dihapus: 0, backup: true, ok: true };
+
+  const semua = loadRtl();
+  const akanDihapus = semua.filter((r) => akanDihapusId.has(r.id));
+  if (!akanDihapus.length) return { dihapus: 0, backup: true, ok: true };
+
+  try {
+    const raw = window.localStorage.getItem(KEY_RTL_GAGAL_BACKUP);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const lama: Rtl[] = Array.isArray(parsed) ? (parsed as Rtl[]) : [];
+    const peta = new Map<string, Rtl>();
+    for (const r of lama) {
+      if (r && typeof r.id === "string") peta.set(r.id, r);
+    }
+    for (const r of akanDihapus) peta.set(r.id, r);
+    window.localStorage.setItem(KEY_RTL_GAGAL_BACKUP, JSON.stringify([...peta.values()]));
+  } catch (e) {
+    console.error("[rtl] gagal membuat cadangan data lama", e);
+    return { dihapus: 0, backup: false, ok: false };
+  }
+
+  const sisa = semua.filter((r) => !akanDihapusId.has(r.id));
+  if (!saveRtl(sisa)) {
+    console.error("[rtl] gagal menghapus data lama dari localStorage");
+    return { dihapus: 0, backup: true, ok: false };
+  }
+
+  return { dihapus: akanDihapus.length, backup: true, ok: true };
 }
 
 const ms = (key: string) => {
