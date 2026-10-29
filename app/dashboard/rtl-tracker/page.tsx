@@ -26,7 +26,7 @@ import { loadCoaching, type Coaching } from "../../lib/coaching-data";
 import { getSession, type Session } from "../../lib/auth";
 import { listAkunGuru, listObservasiCloud, type AkunGuru } from "../../lib/observasi-supabase";
 import { listCoachingCloud } from "../../lib/coaching-supabase";
-import { hapusRtlCloud, importLocalRtl, listRtlCloud, simpanRtlCloud } from "../../lib/rtl-supabase";
+import { hapusRtlCloud, importLocalRtl, listRtlCloud, simpanRtlCloud, type GagalImporRtl } from "../../lib/rtl-supabase";
 import { normNama } from "../../lib/id-stabil";
 import {
   STATUS_RTL,
@@ -65,6 +65,7 @@ type Boot = {
   user: Session | null;
   selfId: string;
   cloudError: string;
+  importGagal: GagalImporRtl[];
   now: Date;
 };
 type TabDetail = "detail" | "bukti" | "riwayat";
@@ -157,6 +158,7 @@ export default function RtlTrackerPage() {
         }
 
         let cloudError = "";
+        let importGagal: GagalImporRtl[] = [];
         let items: Rtl[] = [];
         let cloudOk = false;
         try {
@@ -204,8 +206,10 @@ export default function RtlTrackerPage() {
               /* tetap tampilkan hasil impor */
             }
           }
-          if (hasil.failed > 0)
-            cloudError = `${hasil.failed} RTL lama belum berhasil dipindahkan ke database. Data tetap tersimpan di browser dan akan dicoba lagi saat halaman dibuka.`;
+          if (hasil.failed > 0) {
+            importGagal = hasil.gagal;
+            cloudError = `${hasil.failed} RTL lama belum berhasil dipindahkan ke database. Baris yang gagal tetap tersimpan di browser. Lihat detail untuk alasannya.`;
+          }
         }
 
         if (user?.role === "guru") {
@@ -238,6 +242,7 @@ export default function RtlTrackerPage() {
           user,
           selfId,
           cloudError,
+          importGagal,
           now: new Date(),
         });
       })();
@@ -265,6 +270,9 @@ function Halaman({ boot }: { boot: Boot }) {
   const [items, setItems] = useState<Rtl[]>(boot.items);
   const itemsRef = useRef<Rtl[]>(boot.items);
   const [cloudNotice, setCloudNotice] = useState(boot.cloudError);
+  const [importGagal, setImportGagal] = useState<GagalImporRtl[]>(boot.importGagal);
+  const [detailTerbuka, setDetailTerbuka] = useState(boot.importGagal.length > 0);
+  const [sedangCobaLagi, setSedangCobaLagi] = useState(false);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"semua" | StatusRtl>("semua");
@@ -356,7 +364,9 @@ function Halaman({ boot }: { boot: Boot }) {
       // hilang saat halaman dimuat ulang. Akan dipindahkan otomatis nanti.
       saveRtl(next);
       setCloudNotice(gagal[0]);
-    } else {
+      setImportGagal([]);
+      setDetailTerbuka(false);
+    } else if (!importGagal.length) {
       setCloudNotice("");
     }
   }
@@ -367,6 +377,60 @@ function Halaman({ boot }: { boot: Boot }) {
     itemsRef.current = next;
     setItems(next);
     void simpanDiff(prev, next);
+  }
+
+  async function cobaLagiImpor() {
+    if (sedangCobaLagi) return;
+    setSedangCobaLagi(true);
+    try {
+      const hasil = await importLocalRtl(itemsRef.current, {
+        teacherName: (teacherId) => teachers.find((t) => t.id === teacherId)?.name,
+        guruAkunId: (teacherId, nama) => {
+          if (user?.role === "guru" && teacherId === selfId) return user.id;
+          const cocok = akunGuru.filter((a) => normNama(a.name) === normNama(nama));
+          return cocok.length === 1 ? cocok[0].id : undefined;
+        },
+        filter:
+          user?.role === "guru"
+            ? (r) => r.teacherId === selfId || normNama(r.teacherName ?? "") === normNama(user.name)
+            : undefined,
+      });
+
+      let baru = hasil.items;
+      if (hasil.imported > 0) {
+        try {
+          baru = await listRtlCloud();
+        } catch {
+          /* tetap tampilkan hasil impor */
+        }
+      }
+      itemsRef.current = baru;
+      setItems(baru);
+      setImportGagal(hasil.gagal);
+      setDetailTerbuka(hasil.gagal.length > 0);
+      setCloudNotice(
+        hasil.failed > 0
+          ? `${hasil.failed} RTL masih belum berhasil dipindahkan. Baris yang gagal tetap tersimpan di browser.`
+          : "",
+      );
+    } catch (e) {
+      setCloudNotice(e instanceof Error ? e.message : "Gagal mencoba memindahkan RTL lagi.");
+    } finally {
+      setSedangCobaLagi(false);
+    }
+  }
+
+  function unduhLokal() {
+    const data = loadRtl();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rtl-lokal-${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   const log = (r: Rtl, teks: string): Rtl => ({ ...r, riwayat: [{ waktu: stempelWaktu(), teks }, ...r.riwayat] });
@@ -689,11 +753,45 @@ function Halaman({ boot }: { boot: Boot }) {
       {cloudNotice && (
         <div className="rt-cloud-alert" role="alert">
           <AlertTriangle size={17} aria-hidden="true" />
-          <span>{cloudNotice}</span>
-          <button type="button" onClick={() => setCloudNotice("")} aria-label="Tutup peringatan">
+          <div className="rt-cloud-body">
+            <span>{cloudNotice}</span>
+            {importGagal.length > 0 && (
+              <div className="rt-cloud-tools">
+                <button type="button" onClick={() => setDetailTerbuka((v) => !v)}>
+                  {detailTerbuka ? "Sembunyikan detail" : `Detail (${importGagal.length})`}
+                </button>
+                <button type="button" onClick={() => void cobaLagiImpor()} disabled={sedangCobaLagi}>
+                  {sedangCobaLagi ? "Mencoba..." : "Coba lagi"}
+                </button>
+                <button type="button" onClick={unduhLokal}>
+                  Unduh data lokal (JSON)
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setCloudNotice("");
+              setDetailTerbuka(false);
+            }}
+            aria-label="Tutup peringatan"
+          >
             <X size={16} />
           </button>
         </div>
+      )}
+
+      {cloudNotice && detailTerbuka && importGagal.length > 0 && (
+        <ul className="rt-cloud-detail">
+          {importGagal.map((g, i) => (
+            <li key={`${g.id}-${i}`}>
+              <strong>{g.judul}</strong>
+              <code>{g.code}</code>
+              <span>{g.message}</span>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="rt-layout">

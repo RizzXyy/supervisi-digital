@@ -22,7 +22,9 @@ export type Tahapan = { id: string; teks: string; selesai: boolean };
 // Pembuat id lokal. Ditempatkan di modul (bukan di komponen) supaya tidak
 // dianggap pemanggilan fungsi impure saat render oleh React Compiler.
 export function idRtlBaru() {
-  return `r-${Date.now()}`;
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `r-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export function idBuktiBaru(indeks: number) {
