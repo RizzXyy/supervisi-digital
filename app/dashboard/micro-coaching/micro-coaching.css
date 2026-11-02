@@ -987,3 +987,166 @@
   .dg-field select,
   .dg-field textarea { font-size: 16px; }
 }
+
+/* ---------- HP: sheet AI Feedback ---------- */
+@media (max-width: 640px) {
+  /* Sel kalender boleh menyusut; tombol tetap tinggi 44 px agar mudah
+     disentuh tanpa mendorong lebar halaman. */
+  .mc-week,
+  .mc-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .mc-grid .mc-day {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    aspect-ratio: auto;
+    padding: 0;
+  }
+  .mc-cal-head button {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Lapisan gelap menutupi seluruh layar, termasuk rel sidebar. */
+  .dbd .dbd-modal-backdrop {
+    z-index: 250;
+    align-items: flex-end;
+    padding: 0;
+  }
+  .dbd-modal.mc-wide {
+    width: 100%;
+    max-width: 100%;
+    max-height: 88dvh;
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Header tetap terlihat saat isi digulir. */
+  .dbd-modal.mc-wide .dbd-modal-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-height: 60px;
+    margin: 0 -16px 14px;
+    padding: 10px 14px 10px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--mc-border);
+  }
+  .dbd-modal.mc-wide .dbd-modal-head h3 {
+    font-size: 17px;
+  }
+  .dbd-modal.mc-wide .dbd-modal-head button {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    color: var(--mc-text);
+  }
+  .dbd-modal.mc-wide .dbd-modal-head button:hover {
+    background: var(--mc-bg-soft);
+  }
+
+  .mc-ai-ctx {
+    margin-bottom: 14px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .mc-ai-start {
+    align-items: stretch;
+  }
+  .mc-ai-start .mc-btn-ai {
+    width: 100%;
+    height: 48px;
+    justify-content: center;
+  }
+  .mc-ai-loading {
+    font-size: 14px;
+  }
+  .mc-ai-result {
+    gap: 10px;
+  }
+
+  /* Butir tanpa indent berlebih; penanda jelas per jenis bagian. */
+  .mc-ai-sec {
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .mc-ai-sec h4 {
+    margin-bottom: 10px;
+    font-size: 16px;
+  }
+  .mc-ai-sec p {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .mc-ai-sec ul,
+  .mc-ai-sec ol {
+    margin: 0;
+    padding-left: 0;
+    font-size: 15px;
+    line-height: 1.6;
+    list-style: none;
+  }
+  .mc-ai-sec li {
+    position: relative;
+    padding-left: 26px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .mc-ai-sec li + li {
+    margin-top: 10px;
+  }
+  .mc-ai-sec li::before {
+    position: absolute;
+    top: 0.05em;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .mc-ai-sec.is-good li::before {
+    content: "\2713";
+    background: #dcfce7;
+    color: #15803d;
+  }
+  .mc-ai-sec.is-dev li::before {
+    content: "!";
+    background: #ffedd5;
+    color: #b45309;
+  }
+  .mc-ai-sec.is-ask,
+  .mc-ai-sec.is-plan {
+    counter-reset: mc-ai-num;
+  }
+  .mc-ai-sec.is-ask li::before,
+  .mc-ai-sec.is-plan li::before {
+    counter-increment: mc-ai-num;
+    content: counter(mc-ai-num);
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+  .mc-ai-sec.is-plan li::before {
+    background: var(--mc-accent-soft);
+    color: var(--mc-accent);
+  }
+  .mc-ai-result .jd-info {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .dbd-modal.mc-wide .dbd-modal-actions {
+    flex-direction: column-reverse;
+    margin-top: 14px;
+  }
+  .dbd-modal.mc-wide .dbd-modal-actions > * {
+    width: 100%;
+    height: 48px;
+  }
+}

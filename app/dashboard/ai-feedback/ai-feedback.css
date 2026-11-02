@@ -310,3 +310,11 @@
     padding: 10px;
   }
 }
+/* ---------- HP: tautan kecil tetap mudah disentuh ---------- */
+@media (max-width: 640px) {
+  .af-more {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

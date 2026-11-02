@@ -899,3 +899,31 @@
     border-radius: 18px 18px 0 0;
   }
 }
+/* ---------- HP: aksi & progres tidak melewati kartu ---------- */
+@media (max-width: 640px) {
+  .rt-prog {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .rt-prog .rt-bar {
+    min-width: 0;
+  }
+  .rt-table .dbd-detail-btn,
+  .dbd-detail-btn {
+    width: auto;
+    max-width: 100%;
+  }
+  .rt-mode button,
+  .rt-mode select,
+  .rt-pager button {
+    min-width: 44px;
+    height: 44px;
+  }
+  .rt-mode select {
+    min-width: 0;
+  }
+  .rt-link,
+  .rt-links a {
+    min-height: 44px;
+  }
+}

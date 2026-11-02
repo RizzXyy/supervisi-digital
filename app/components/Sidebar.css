@@ -141,7 +141,7 @@
     grid-template-columns: minmax(0, 1fr);
     padding-left: 68px;
   }
-  .dash-shell > .main { padding: 16px 14px 28px; }
+  .dash-shell > .main { padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); }
 
   .sb {
     position: fixed;

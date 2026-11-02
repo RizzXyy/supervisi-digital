@@ -845,3 +845,10 @@
     text-align: left;
   }
 }
+/* ---------- HP: kontrol filter setinggi target sentuh ---------- */
+@media (max-width: 640px) {
+  .select {
+    height: 48px;
+    min-height: 48px;
+  }
+}

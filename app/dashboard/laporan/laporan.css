@@ -497,3 +497,36 @@
     gap: 4px;
   }
 }
+/* ---------- HP: filter & progres muat di gutter ---------- */
+@media (max-width: 640px) {
+  .lp-filter {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .lp-fgroup {
+    min-width: 0;
+    width: 100%;
+  }
+  .lp-fgroup select,
+  .lp-range input {
+    width: 100%;
+    min-width: 0;
+    height: 48px;
+    font-size: 16px;
+  }
+  .lp-prog {
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+  .lp-prog em {
+    min-width: 0;
+  }
+  .lp-bar {
+    min-width: 0;
+  }
+  .lp-pager button {
+    min-width: 44px;
+    height: 44px;
+  }
+}

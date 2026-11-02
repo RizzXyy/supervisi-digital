@@ -246,3 +246,13 @@
   .dbd .ob-detail-actions, .ob-crumb { display: none !important; }
   .ob-acc-head svg { display: none; }
 }
+/* ---------- HP: badge status tidak terpotong ---------- */
+@media (max-width: 640px) {
+  .jd-badge {
+    max-width: 100%;
+    padding: 3px 6px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+  }
+}

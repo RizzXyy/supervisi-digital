@@ -511,7 +511,7 @@ export default function ProfilPage() {
                   className={s.input}
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
-                  placeholder="Nama lengkap beserta gelar"
+                  placeholder="Nama lengkap"
                 />
               </Field>
               <Field
@@ -537,7 +537,7 @@ export default function ProfilPage() {
                   inputMode="numeric"
                   value={nomor}
                   onChange={(e) => setNomor(e.target.value.trim())}
-                  placeholder="16 digit NUPTK atau 18 digit NIP"
+                  placeholder="NUPTK / NIP"
                 />
               </Field>
             </div>
@@ -546,7 +546,7 @@ export default function ProfilPage() {
 
         {/* Mapel & kelas — hanya untuk akun guru (kepala sekolah tidak mengajar) */}
         {role === "guru" && (
-          <section className={s.panel}>
+          <section className={`${s.panel} ${s.ajarPanel}`}>
             <div className={s.panelHead}>
               <div className={s.panelHeadMain}>
                 <span className={s.panelIcon} aria-hidden="true">
@@ -559,15 +559,6 @@ export default function ProfilPage() {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                className={s.btnOutline}
-                onClick={() =>
-                  setAjar([...ajar, { id: Date.now(), mapel: "", kelas: "" }])
-                }
-              >
-                <Plus size={16} /> Tambah
-              </button>
             </div>
 
             {errors.ajarUmum && <div className={s.error}>{errors.ajarUmum}</div>}
@@ -579,13 +570,13 @@ export default function ProfilPage() {
                     className={s.input}
                     value={a.mapel}
                     onChange={(e) => updateAjar(a.id, "mapel", e.target.value)}
-                    placeholder="Mata pelajaran, mis. Matematika"
+                    placeholder="Mata pelajaran"
                   />
                   <input
                     className={s.input}
                     value={a.kelas}
                     onChange={(e) => updateAjar(a.id, "kelas", e.target.value)}
-                    placeholder="Kelas, mis. VII A, VII B"
+                    placeholder="Kelas"
                   />
                   <button
                     type="button"
@@ -602,6 +593,18 @@ export default function ProfilPage() {
                 )}
               </div>
             ))}
+
+            <div className={s.addRow}>
+              <button
+                type="button"
+                className={s.btnOutline}
+                onClick={() =>
+                  setAjar([...ajar, { id: Date.now(), mapel: "", kelas: "" }])
+                }
+              >
+                <Plus size={16} /> Tambah
+              </button>
+            </div>
           </section>
         )}
 

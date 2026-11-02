@@ -441,7 +441,9 @@ body:has(.dbd) { background: #fff; }
 }
 
 @media (max-width: 860px) {
-  .dbd { padding: 16px 14px 28px; }
+  /* Gutter konten 16px di kiri/kanan supaya tidak ada isi yang menempel
+     ke tepi layar maupun ke rel ikon. */
+  .dbd { padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); }
   .dbd-banner { min-height: 112px; padding: 20px; background:
     linear-gradient(90deg, #fff 0%, #fff 55%, rgba(255, 255, 255, 0.35) 100%),
     url("/sekolah.jpg") right center / cover no-repeat,
@@ -556,6 +558,14 @@ body:has(.dbd) { background: #fff; }
     text-align: left !important;
     justify-items: start;
   }
+  /* Tombol aksi mendapat lebar penuh kartu supaya tidak keluar dari sel. */
+  .tabel-kartu.tabel-kartu td.dg-aksi > * {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .tabel-kartu.tabel-kartu td.dg-aksi > .mc-aksi {
+    justify-content: flex-end;
+  }
   .tabel-kartu.tabel-kartu td.dg-empty-row {
     display: block;
     padding: 20px 12px !important;
@@ -575,3 +585,83 @@ body:has(.dbd) { background: #fff; }
 /* Notifikasi */.dbd-notif { display: grid; gap: 10px; margin-top: 14px; }.dbd-notif li { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35; }.dbd-notif li.is-late { background: #fee2e2; color: #b91c1c; }.dbd-notif li.is-soon { background: #ffedd5; color: #c2410c; }.dbd-notif svg { flex-shrink: 0; margin-top: 1px; }
 
 /* Notifikasi RTL */.dbd-notif { display: grid; gap: 10px; margin-top: 14px; }.dbd-notif li { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.35; }.dbd-notif li.is-late { background: #fee2e2; color: #b91c1c; }.dbd-notif li.is-soon { background: #ffedd5; color: #c2410c; }.dbd-notif svg { flex-shrink: 0; margin-top: 1px; }
+
+/* =========================================================
+   PENYESUAIAN UMUM LAYAR HP (<= 640px)
+   Hanya berlaku di mobile, jadi tampilan desktop tidak berubah.
+   ========================================================= */
+@media (max-width: 640px) {
+  /* Animasi masuk halaman membuat .dbd menjadi containing block sehingga
+     dialog position:fixed tidak menutupi seluruh layar. Di HP animasinya
+     dimatikan agar sheet benar-benar selebar viewport. */
+  .dbd {
+    animation: none;
+    transform: none;
+  }
+
+  /* Anak flex/grid boleh menyusut supaya tidak mendorong tepi halaman. */
+  .dbd :where(section, article, aside, header, footer, form, div) {
+    min-width: 0;
+  }
+  .dbd :where(p, li, td, strong, small, span) {
+    overflow-wrap: anywhere;
+  }
+
+  /* Skala judul halaman + keterangan. */
+  .dbd .dg-head h1,
+  .dbd .af-head h1,
+  .dbd .mc-head h1,
+  .dbd .ob-detail-title h1 {
+    font-size: 24px;
+    line-height: 1.25;
+  }
+  .dbd .dg-head p {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .dbd .rp-card h2,
+  .dbd .mc-card-head h2,
+  .dbd .mc-title,
+  .dbd .af-card h2,
+  .dbd .ob-panel h2,
+  .dbd .lp-insight h3,
+  .dbd .lp-note h3 {
+    font-size: 18px;
+  }
+
+  /* Target sentuh minimal 44px untuk tombol di area konten. */
+  .dbd button {
+    min-height: 44px;
+  }
+  .dbd .dg-edit,
+  .dbd .mc-trash {
+    width: 44px;
+    height: 44px;
+  }
+  .dbd .dg-page,
+  .dbd .lp-pager button,
+  .dbd .rt-pager button {
+    min-width: 44px;
+    height: 44px;
+  }
+  /* Kolom pencarian setinggi kontrol lain + tautan kecil tetap mudah disentuh. */
+  .dbd .dg-search.dg-search.dg-search input {
+    height: 48px;
+  }
+  .dbd .dbd-more,
+  .dbd .af-more {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .dbd .dbd-modal-head button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .dbd .dg-field input,
+  .dbd .dg-field select,
+  .dbd .dg-field textarea {
+    font-size: 16px;
+  }
+}

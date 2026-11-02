@@ -680,3 +680,165 @@
     padding: 18px 12px;
   }
 }
+
+/* =========================================================
+   RPP / MODUL AJAR — satu kartu per dokumen di HP
+   ========================================================= */
+@media (max-width: 640px) {
+  /* Header daftar: judul satu baris, jumlah dokumen di baris bawah. */
+  .rp-card-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .rp-card-head h2 {
+    font-size: 18px;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .rp-card-head h2 svg {
+    width: 18px;
+    height: 18px;
+  }
+  .rp-card-head > span {
+    align-self: flex-end;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  /* Kartu pembungkus daftar dilebur, supaya tiap dokumen hanya punya
+     satu kartu (tidak ada kartu di dalam kartu). */
+  .rp-main > .rp-card {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .rp-main > .rp-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .rp-table.tabel-kartu tr {
+    margin-bottom: 14px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .rp-table.tabel-kartu td {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 5px 0;
+  }
+  .rp-table.tabel-kartu td::before {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  /* Nomor urut tidak perlu di kartu HP. */
+  .rp-table.tabel-kartu td.rp-no {
+    display: none;
+  }
+
+  /* Judul + nama file tampil sebagai kepala kartu. */
+  .rp-table.tabel-kartu td[data-label="Judul Dokumen"] {
+    display: block;
+    margin-bottom: 8px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .rp-table.tabel-kartu td[data-label="Judul Dokumen"]::before {
+    content: none;
+  }
+  .rp-table.tabel-kartu td[data-label="Judul Dokumen"] > * {
+    grid-column: auto;
+  }
+  .rp-doc {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .rp-doc-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .rp-doc-text {
+    gap: 4px;
+  }
+  .rp-doc-text strong {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.4;
+  }
+  .rp-doc-text small {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  /* Pil status rata kiri di kolom nilainya; teks panjang boleh turun baris
+     supaya tidak menembus tepi kartu. */
+  .rp-pill {
+    justify-self: start;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* Aksi Lihat + titik tiga rata kanan. */
+  .rp-table.tabel-kartu td[data-label="Aksi"] {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .rp-actions {
+    grid-column: 2;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .rp-view {
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+  .rp-more {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Filter: tumpuk penuh, label di atas input. */
+  .rp-filters {
+    padding: 14px;
+    gap: 12px;
+  }
+  .rp-filters .rp-search {
+    width: 100%;
+  }
+  .rp-filters .rp-search input {
+    height: 48px;
+  }
+  .rp-filters .rp-select select {
+    height: 48px;
+    font-size: 16px;
+  }
+  .rp-reset {
+    width: 100%;
+    height: 48px;
+    justify-self: stretch;
+  }
+}
+/* ---------- HP: target sentuh aksi ---------- */
+@media (max-width: 640px) {
+  .rp-more {
+    flex: 0 0 44px;
+  }
+  .rp-actions {
+    gap: 8px;
+  }
+  .rp-doc-text .rp-video-note {
+    align-items: center;
+    min-height: 44px;
+  }
+}
