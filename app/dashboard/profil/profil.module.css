@@ -6,9 +6,15 @@
   --g-muted: #64748b;
   --g-line: #e5ebf5;
 
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   max-width: 1000px;
   /* Beri jarak ekstra dari sidebar agar judul tidak terlihat menempel. */
-  padding-left: 20px;
+  padding-left: 0;
+  padding-right: 12px;
+  padding-top: 25px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   color: var(--g-text);
   animation: masukNaik 0.34s var(--ease) both;
 }
@@ -30,16 +36,29 @@
   color: var(--g-muted);
 }
 
+/* minmax(0, 1fr): kolom tunggal tidak boleh melebar melebihi layar
+   hanya karena isi kartu (penyebab umum konten terpotong di kanan). */
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 .panel {
+  min-width: 0;
   padding: 22px 24px;
   background: #fff;
   border: 1px solid var(--g-line);
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  transition:
+    transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .panel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+  }
 }
 .panelHead {
   display: flex;
@@ -134,7 +153,7 @@
 }
 .grid3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 18px;
 }
 .field {
@@ -148,6 +167,7 @@
   color: #334155;
 }
 .input {
+  box-sizing: border-box;
   width: 100%;
   height: 44px;
   padding: 0 12px;
@@ -208,6 +228,33 @@
 }
 
 /* ---------- Mapel & kelas ---------- */
+/* Desktop: tombol "+ Tambah" tetap di kanan header, walau urutan DOM-nya
+   di bawah daftar baris. Grid dua kolom menyatukan keduanya. */
+.ajarPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 16px;
+}
+.ajarPanel > .panelHead {
+  display: contents;
+}
+.ajarPanel > .panelHead .panelHeadMain {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 18px;
+}
+.ajarPanel > .addRow {
+  grid-column: 2;
+  grid-row: 1;
+}
+.ajarPanel > :not(.panelHead):not(.addRow) {
+  grid-column: 1 / -1;
+}
+.addRow {
+  display: flex;
+  justify-content: flex-end;
+}
 .ajarBlock {
   margin-bottom: 10px;
 }
@@ -216,7 +263,7 @@
 }
 .ajarRow {
   display: grid;
-  grid-template-columns: 1fr 1fr 42px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
   gap: 10px;
   align-items: center;
 }
@@ -230,10 +277,17 @@
   border-radius: 10px;
   color: #dc2626;
   cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
 }
 .trash:hover:not(:disabled) {
   background: #fdeaea;
   border-color: #fbcaca;
+}
+.trash:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
 }
 .trash:disabled {
   opacity: 0.35;
@@ -297,10 +351,12 @@
     border-color var(--dur-1) var(--ease),
     box-shadow var(--dur-1) var(--ease);
 }
-.summaryCard:hover {
-  transform: translateY(-2px);
-  border-color: #bcd3fb;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+@media (hover: hover) and (pointer: fine) {
+  .summaryCard:hover {
+    transform: translateY(-2px);
+    border-color: #bcd3fb;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+  }
 }
 .summaryCardIcon {
   display: grid;
@@ -396,6 +452,11 @@
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform 0.12s var(--ease);
 }
 .btnOutline {
   background: #fff;
@@ -417,6 +478,10 @@
   background: var(--g-primary-dark);
   border-color: var(--g-primary-dark);
 }
+.btnOutline:active,
+.btnPrimary:active {
+  transform: translateY(1px) scale(0.98);
+}
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -434,8 +499,8 @@
   color: #0f9d6b;
   font-size: 14px;
   font-weight: 700;
+  animation: masukNaik var(--dur-2) var(--ease) both;
 }
-
 /* Peringatan: sebagian data tersimpan, sebagian lagi belum (mis. kolom
    database belum ada). */
 .warning {
@@ -446,186 +511,95 @@
   color: #b45309;
   font-size: 13px;
   font-weight: 600;
+  animation: masukNaik var(--dur-2) var(--ease) both;
 }
 
+/* =====================================================================
+   RESPONSIF
+   ===================================================================== */
+
+/* Tablet */
 @media (max-width: 1000px) {
   .summaryGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
+/* Tablet kecil: kartu identitas jadi satu baris penuh, form 1 kolom */
 @media (max-width: 800px) {
   .page {
     padding-left: 12px;
   }
   .profileRow {
     flex-direction: column;
+    align-items: stretch;
     gap: 18px;
   }
+  /* Avatar di kiri (menempati 2 baris), nama dan badge peran bertumpuk
+     rapi di kanannya. */
   .identity {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 14px;
+    row-gap: 4px;
     align-items: center;
     justify-items: start;
     width: 100%;
+    box-sizing: border-box;
     padding: 14px 16px;
     text-align: left;
   }
   .avatar {
-    width: 56px;
-    height: 56px;
+    grid-row: 1 / span 2;
+    width: 58px;
+    height: 58px;
     font-size: 20px;
+  }
+  .identityName {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+  }
+  .roleChip {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
   }
   .grid2,
   .grid3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     width: 100%;
   }
-  .ajarRow {
-    grid-template-columns: 1fr 42px;
-  }
-  .ajarRow input:nth-child(2) {
-    grid-column: 1;
-  }
 }
 
-/* ---------- Animasi halus ---------- */
-.panel {
-  transition:
-    transform var(--dur-2) var(--ease),
-    box-shadow var(--dur-2) var(--ease);
-}
-.panel:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
-}
-.btnPrimary,
-.btnGhost,
-.trash {
-  transition:
-    background var(--dur-1) var(--ease),
-    border-color var(--dur-1) var(--ease),
-    color var(--dur-1) var(--ease),
-    transform 0.12s var(--ease);
-}
-.btnPrimary:active,
-.btnGhost:active,
-.trash:active {
-  transform: translateY(1px) scale(0.97);
-}
-.success,
-.warning {
-  animation: masukNaik var(--dur-2) var(--ease) both;
-}
-
-/* ---------- HP ---------- */
-/* Tombol "+ Tambah" dipindah ke bawah daftar baris (urutan DOM), tetapi di
-   desktop tetap tampil di kanan header seperti semula. Grid dua kolom
-   menyatukan header dan tombol pada baris pertama. */
-.ajarPanel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  column-gap: 16px;
-}
-.ajarPanel > .panelHead {
-  display: contents;
-}
-.ajarPanel > .panelHead .panelHeadMain {
-  grid-column: 1;
-  grid-row: 1;
-  margin-bottom: 18px;
-}
-.ajarPanel > .addRow {
-  grid-column: 2;
-  grid-row: 1;
-}
-.ajarPanel > :not(.panelHead):not(.addRow) {
-  grid-column: 1 / -1;
-}
-.addRow {
-  display: flex;
-  justify-content: flex-end;
-}
-
-@media (max-width: 560px) {
-  .title {
-    font-size: 22px;
-  }
-  .panel {
-    padding: 16px 14px;
-    border-radius: 14px;
-  }
-  .panelHead {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .summaryGrid {
-    grid-template-columns: 1fr;
-  }
-  .summaryStatus {
-    align-self: flex-start;
-  }
-  .panelHead .btnOutline {
-    width: 100%;
-    height: 42px;
-  }
-  .identity {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  .roleChip {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-  .input {
-    height: 46px;
-    font-size: 16px;
-  }
-  .ajarRow {
-    grid-template-columns: 1fr 44px;
-  }
-  .trash {
-    width: 44px;
-    height: 44px;
-  }
-  .btnPrimary {
-    width: 100%;
-    height: 46px;
-    justify-content: center;
-  }
-}
-
-/* ---------- HP: 360 / 390 / 412 ---------- */
+/* HP */
 @media (max-width: 640px) {
+  /* Kiri sudah diberi jarak oleh layout (sidebar); kanan diberi jarak
+     yang sama supaya kartu dan tombol tidak menempel ke tepi layar. */
   .page {
     padding-left: 0;
-    padding-right: 0;
+    padding-right: 12px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   }
   .header {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
   .title {
     font-size: 24px;
     line-height: 1.25;
   }
   .subtitle {
-    margin-top: 8px;
-    font-size: 15px;
-    line-height: 1.55;
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 1.5;
   }
   .stack {
     gap: 14px;
   }
 
-  /* Kartu: radius 16, padding 16, jarak antar kartu 14. */
   .panel {
     padding: 16px;
     border-radius: 16px;
-  }
-  .panel:hover {
-    transform: none;
-    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
   }
   .panelHead {
     flex-direction: column;
@@ -633,21 +607,13 @@
     gap: 10px;
     margin-bottom: 16px;
   }
-  .panelHeadMain {
-    gap: 12px;
-  }
   .panelIcon {
     width: 40px;
     height: 40px;
     border-radius: 12px;
   }
-  .panelIcon svg {
-    width: 20px;
-    height: 20px;
-  }
   .panelTitle {
-    font-size: 18px;
-    line-height: 1.3;
+    font-size: 17px;
   }
   .panelDesc {
     margin-top: 4px;
@@ -655,7 +621,7 @@
     line-height: 1.5;
   }
 
-  /* Ringkasan pengembangan: 2 x 2 ringkas. */
+  /* Ringkasan pengembangan: 2 x 2 ringkas */
   .summaryPanel {
     margin-bottom: 14px;
   }
@@ -670,39 +636,27 @@
     padding: 12px;
     border-radius: 12px;
   }
-  .summaryCard:hover {
-    transform: none;
-    box-shadow: none;
-  }
   .summaryCardIcon {
     width: 32px;
     height: 32px;
     border-radius: 9px;
   }
-  .summaryCardIcon svg {
-    width: 17px;
-    height: 17px;
-  }
   .summaryCardBody {
     gap: 1px;
     padding-right: 14px;
-  }
-  .summaryCardLabel {
-    font-size: 11px;
-    line-height: 1.3;
   }
   .summaryCardValue {
     font-size: 20px;
   }
   .summaryCardMeta {
-    display: -webkit-box;
-    overflow: hidden;
-    font-size: 11px;
-    line-height: 1.4;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    white-space: normal;
-  }
+  display: -webkit-box;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
   .summaryCardArrow {
     top: 9px;
     right: 8px;
@@ -711,21 +665,15 @@
   }
   .summaryStatus {
     align-self: flex-start;
-    font-size: 11.5px;
-  }
-  .summaryLoading {
-    font-size: 13px;
   }
   .summaryHint {
     font-size: 13px;
-    line-height: 1.5;
   }
-
-  /* Rantai observasi -> RTL jadi stepper vertikal. */
+  /* Rantai Observasi -> RTL jadi stepper vertikal */
   .summaryFlow {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px;
   }
   .summaryFlowStep {
     padding: 5px 10px;
@@ -737,20 +685,9 @@
     transform: rotate(90deg);
   }
 
-  /* Form data diri. */
+  /* Form */
   .profileRow {
     gap: 14px;
-  }
-  .identity {
-    gap: 8px;
-    padding: 14px;
-    border-radius: 14px;
-  }
-  .identityName {
-    font-size: 14px;
-  }
-  .roleChip {
-    font-size: 12px;
   }
   .grid2,
   .grid3 {
@@ -764,7 +701,7 @@
     height: 48px;
     padding: 0 14px;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 16px; /* cegah zoom otomatis di iOS */
   }
   .pwWrap .input {
     padding-right: 50px;
@@ -777,11 +714,12 @@
   }
   .hint,
   .error {
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.5;
   }
 
-  /* Mapel & kelas: tiap baris jadi blok sendiri. */
+  /* Mapel & kelas: tiap baris jadi blok kecil; mapel di atas,
+     kelas + tombol hapus di bawahnya. */
   .ajarPanel {
     display: block;
   }
@@ -794,12 +732,15 @@
     margin-bottom: 0;
   }
   .ajarBlock {
+    padding: 12px;
     margin-bottom: 12px;
+    border: 1px solid var(--g-line);
+    border-radius: 14px;
+    background: #fbfdff;
   }
   .ajarRow {
     grid-template-columns: minmax(0, 1fr) 44px;
     gap: 8px;
-    align-items: center;
   }
   .ajarRow input:nth-child(1) {
     grid-column: 1 / -1;
@@ -817,13 +758,11 @@
     border-radius: 12px;
   }
   .addRow {
-    margin-top: 12px;
+    margin-top: 4px;
     justify-content: stretch;
   }
   .addRow .btnOutline {
     width: 100%;
-    height: 48px;
-    font-size: 15px;
   }
 
   .btnOutline {
@@ -836,10 +775,11 @@
     font-size: 13.5px;
     line-height: 1.5;
   }
+
+  /* Tombol simpan: lebar penuh, tidak menempel ke tepi layar */
   .actions {
     display: block;
-    padding-top: 4px;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: 2px;
   }
   .btnPrimary {
     width: 100%;
