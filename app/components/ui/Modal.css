@@ -1,0 +1,151 @@
+/* Modal bersama: overlay penuh, header/body/footer terpisah.
+   Body hanya area yang menggulir, footer aksi selalu terlihat. */
+
+/* Animasi masuk halaman membuat .dbd menjadi containing block sehingga
+   position:fixed pada backdrop hanya setinggi konten. Saat ada modal,
+   matikan animasi/transform root agar overlay menutupi seluruh viewport. */
+body:has(.app-modal-backdrop) .dbd,
+body.app-modal-open .dbd {
+  animation: none;
+  transform: none;
+}
+
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(11, 42, 107, 0.42);
+  animation: masukHalus var(--dur-2) var(--ease) both;
+}
+
+.app-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 90vh;
+  max-height: 90dvh;
+  padding: 20px 22px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(11, 42, 107, 0.25);
+  animation: naikNaik var(--dur-2) var(--ease) both;
+}
+
+.app-modal-sm {
+  width: min(420px, 100%);
+}
+
+.app-modal-md {
+  width: min(560px, 100%);
+}
+
+.app-modal-lg {
+  width: min(720px, 100%);
+}
+
+.app-modal-xl {
+  width: min(860px, 100%);
+}
+
+/* Header tetap terlihat, tidak ikut tergulir. */
+.app-modal-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e6ebf3;
+}
+
+.app-modal-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: inherit;
+}
+
+.app-modal-head button {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted, #6b7a90);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.app-modal-head button:hover {
+  background: #f1f5f9;
+  color: var(--ink, #0f172a);
+}
+
+/* Satu-satunya area yang boleh menggulir. */
+.app-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 16px;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.app-modal-body > form,
+.app-modal-body > .dg-form,
+.app-modal-body > .dbd-detail {
+  margin-top: 0;
+}
+
+/* Rapikan jarak elemen pertama/terakhir di area isi. */
+.app-modal-body > :first-child {
+  margin-top: 0;
+}
+
+.app-modal-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Footer aksi tetap terlihat di bawah modal. */
+.app-modal-foot {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #e6ebf3;
+  background: #fff;
+}
+
+@media (max-width: 640px) {
+  .app-modal-backdrop {
+    padding: 12px;
+  }
+
+  .app-modal {
+    width: 100%;
+    max-height: 90dvh;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: 16px;
+  }
+
+  .app-modal-body {
+    padding-top: 12px;
+  }
+
+  .app-modal-foot {
+    flex-direction: column-reverse;
+  }
+
+  .app-modal-foot > * {
+    width: 100%;
+  }
+}

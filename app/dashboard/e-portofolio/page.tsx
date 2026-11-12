@@ -30,7 +30,6 @@ import {
   Layers,
   Award,
   Users,
-  X,
   Upload,
   Trash2,
   Pencil,
@@ -52,6 +51,7 @@ import {
   type PortofolioItem,
   type PortofolioStatus,
 } from "../../lib/portofolio-store";
+import Modal from "../../components/ui/Modal";
 import s from "./portofolio.module.css";
 import "../dashboard-home.css";
 
@@ -664,16 +664,23 @@ export default function EPortofolioPage() {
 
       {/* ---------- Modal tambah / edit ---------- */}
       {modal && (modal.mode === "new" || modal.mode === "edit") && (
-        <div className={s.backdrop} onClick={() => setModal(null)}>
-          <div className={s.modal} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className={s.modalHead}>
-              <h3 className={s.modalTitle}>{modal.mode === "edit" ? "Edit Portofolio" : "Tambah Portofolio"}</h3>
-              <button className={s.modalClose} onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title={modal.mode === "edit" ? "Edit Portofolio" : "Tambah Portofolio"}
+          titleId="porto-form-title"
+          footer={
+            <>
+              <button type="button" className={s.btnGhost} onClick={() => setModal(null)}>
+                Batal
               </button>
-            </div>
-
-            <form onSubmit={handleSubmit} noValidate>
+              <button type="submit" form="porto-form" className={s.btnSolid} disabled={busy}>
+                {busy ? "Menyimpan..." : modal.mode === "edit" ? "Simpan Perubahan" : "Tambah"}
+              </button>
+            </>
+          }
+        >
+            <form id="porto-form" onSubmit={handleSubmit} noValidate>
               <div
                 className={`${s.drop} ${drag ? s.isDrag : ""}`}
                 role="button"
@@ -757,31 +764,41 @@ export default function EPortofolioPage() {
                   {error}
                 </p>
               )}
-
-              <div className={s.modalActions}>
-                <button type="button" className={s.btnGhost} onClick={() => setModal(null)}>
-                  Batal
-                </button>
-                <button type="submit" className={s.btnSolid} disabled={busy}>
-                  {busy ? "Menyimpan..." : modal.mode === "edit" ? "Simpan Perubahan" : "Tambah"}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ---------- Modal detail ---------- */}
       {modal?.mode === "detail" && detailItem && (
-        <div className={s.backdrop} onClick={() => setModal(null)}>
-          <div className={s.modal} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className={s.modalHead}>
-              <h3 className={s.modalTitle}>Detail Portofolio</h3>
-              <button className={s.modalClose} onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title="Detail Portofolio"
+          titleId="porto-detail-title"
+          footer={
+            <>
+              <button
+                className={s.btnGhost}
+                onClick={() => setModal({ mode: "delete", id: detailItem.id })}
+              >
+                <Trash2 size={15} /> Hapus
               </button>
-            </div>
-
+              {detailItem.fileName && (
+                <button className={s.btnGhost} onClick={() => downloadItem(detailItem)}>
+                  <Download size={15} /> Unduh
+                </button>
+              )}
+              {detailItem.status === "ditolak" && (
+                <button className={s.btnSolid} onClick={() => openEdit(detailItem)}>
+                  <Pencil size={15} /> Perbaiki
+                </button>
+              )}
+              <button className={s.btnSolid} onClick={() => setModal(null)}>
+                Tutup
+              </button>
+            </>
+          }
+        >
             <div className={s.detailRow}>
               <span className={s.detailLabel}>Judul</span>
               <span className={s.detailValue}>{detailItem.judul}</span>
@@ -807,68 +824,48 @@ export default function EPortofolioPage() {
               </span>
             </div>
             <p className={s.detailDesc}>{detailItem.deskripsi}</p>
-
-            <div className={s.modalActions}>
-              <button
-                className={s.btnGhost}
-                onClick={() => setModal({ mode: "delete", id: detailItem.id })}
-              >
-                <Trash2 size={15} /> Hapus
-              </button>
-              {detailItem.fileName && (
-                <button className={s.btnGhost} onClick={() => downloadItem(detailItem)}>
-                  <Download size={15} /> Unduh
-                </button>
-              )}
-              {detailItem.status === "ditolak" && (
-                <button className={s.btnSolid} onClick={() => openEdit(detailItem)}>
-                  <Pencil size={15} /> Perbaiki
-                </button>
-              )}
-              <button className={s.btnSolid} onClick={() => setModal(null)}>
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ---------- Modal hapus ---------- */}
       {modal?.mode === "delete" && deleteItem && (
-        <div className={s.backdrop} onClick={() => setModal(null)}>
-          <div className={s.modal} role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className={s.modalHead}>
-              <h3 className={s.modalTitle}>Hapus Portofolio?</h3>
-              <button className={s.modalClose} onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
-              </button>
-            </div>
-            <p className={s.detailDesc}>
-              <strong>{deleteItem.judul}</strong> akan dihapus beserta filenya. Tindakan ini tidak
-              bisa dibatalkan.
-            </p>
-            <div className={s.modalActions}>
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title="Hapus Portofolio?"
+          titleId="porto-del-title"
+          role="alertdialog"
+          footer={
+            <>
               <button className={s.btnGhost} onClick={() => setModal(null)}>
                 Batal
               </button>
               <button className={s.btnDanger} onClick={confirmDelete}>
                 <Trash2 size={15} /> Ya, Hapus
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+            <p className={s.detailDesc}>
+              <strong>{deleteItem.judul}</strong> akan dihapus beserta filenya. Tindakan ini tidak
+              bisa dibatalkan.
+            </p>
+        </Modal>
       )}
 
       {/* ---------- Modal panduan ---------- */}
       {modal?.mode === "guide" && (
-        <div className={s.backdrop} onClick={() => setModal(null)}>
-          <div className={s.modal} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className={s.modalHead}>
-              <h3 className={s.modalTitle}>Panduan E-Portofolio</h3>
-              <button className={s.modalClose} onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
-              </button>
-            </div>
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title="Panduan E-Portofolio"
+          titleId="porto-guide-title"
+          footer={
+            <button className={s.btnSolid} onClick={() => setModal(null)}>
+              Mengerti
+            </button>
+          }
+        >
             <ol className={s.guideList}>
               <li>
                 Klik <strong>Tambah Portofolio</strong>, lalu isi judul, pilih kategori, dan
@@ -892,13 +889,7 @@ export default function EPortofolioPage() {
                 mengunduh, atau menghapus item.
               </li>
             </ol>
-            <div className={s.modalActions}>
-              <button className={s.btnSolid} onClick={() => setModal(null)}>
-                Mengerti
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

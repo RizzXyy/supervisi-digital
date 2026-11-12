@@ -28,9 +28,9 @@ import {
   RotateCcw,
   Search,
   Upload,
-  X,
 } from "lucide-react";
 import { getSession, type Session } from "../../lib/auth";
+import Modal from "../../components/ui/Modal";
 import { formatTanggalPendek, loadTeachers, type Teacher } from "../../lib/dashboard-data";
 import { ACCEPTED, RPP_STATUS, formatSize, validateFile, type RppStatus } from "../../lib/rpp-store";
 import {
@@ -809,16 +809,23 @@ export default function RppPage() {
 
       {/* Form unggah / edit */}
       {docModal && (
-        <div className="dbd-modal-backdrop" onClick={() => setDocModal(null)}>
-          <div className="dbd-modal" role="dialog" aria-modal="true" aria-labelledby="rp-modal-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="rp-modal-title">{docModal.mode === "edit" ? "Edit Dokumen" : "Unggah Dokumen"}</h3>
-              <button type="button" onClick={() => setDocModal(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setDocModal(null)}
+          title={docModal.mode === "edit" ? "Edit Dokumen" : "Unggah Dokumen"}
+          titleId="rp-modal-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setDocModal(null)}>
+                Batal
               </button>
-            </div>
-
-            <form className="dg-form" onSubmit={handleSubmit} noValidate>
+              <button type="submit" form="rp-form" className="dbd-btn-primary" disabled={busy}>
+                {busy ? "Menyimpan..." : docModal.mode === "edit" ? "Simpan Perubahan" : "Unggah"}
+              </button>
+            </>
+          }
+        >
+            <form id="rp-form" className="dg-form" onSubmit={handleSubmit} noValidate>
               <div
                 className={`rp-drop${drag ? " is-drag" : ""}${file ? " has-file" : ""}`}
                 role="button"
@@ -922,31 +929,29 @@ export default function RppPage() {
                   {error}
                 </p>
               )}
-
-              <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setDocModal(null)}>
-                  Batal
-                </button>
-                <button type="submit" className="dbd-btn-primary" disabled={busy}>
-                  {busy ? "Menyimpan..." : docModal.mode === "edit" ? "Simpan Perubahan" : "Unggah"}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Tolak dokumen */}
       {rejectDoc && (
-        <div className="dbd-modal-backdrop" onClick={() => setRejectId(null)}>
-          <div className="dbd-modal" role="dialog" aria-modal="true" aria-labelledby="rp-reject-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="rp-reject-title">Tolak Dokumen</h3>
-              <button type="button" onClick={() => setRejectId(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setRejectId(null)}
+          title="Tolak Dokumen"
+          titleId="rp-reject-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setRejectId(null)}>
+                Batal
               </button>
-            </div>
-            <form className="dg-form" onSubmit={submitReject} noValidate>
+              <button type="submit" form="rp-reject-form" className="dbd-btn-primary rp-danger">
+                Tolak Dokumen
+              </button>
+            </>
+          }
+        >
+            <form id="rp-reject-form" className="dg-form" onSubmit={submitReject} noValidate>
               <p className="jd-info">
                 <strong>{rejectDoc.judul}</strong> · {rejectDoc.ownerName}
               </p>
@@ -965,42 +970,33 @@ export default function RppPage() {
                   {reasonError}
                 </p>
               )}
-              <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setRejectId(null)}>
-                  Batal
-                </button>
-                <button type="submit" className="dbd-btn-primary rp-danger">
-                  Tolak Dokumen
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Konfirmasi hapus */}
       {deleteDoc && (
-        <div className="dbd-modal-backdrop" onClick={() => setDeleteId(null)}>
-          <div className="dbd-modal" role="alertdialog" aria-modal="true" aria-labelledby="rp-del-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="rp-del-title">Hapus Dokumen?</h3>
-              <button type="button" onClick={() => setDeleteId(null)} aria-label="Tutup">
-                <X size={18} />
-              </button>
-            </div>
-            <p className="jd-info" style={{ marginTop: 14 }}>
-              <strong>{deleteDoc.judul}</strong> akan dihapus beserta filenya. Tindakan ini tidak bisa dibatalkan.
-            </p>
-            <div className="dbd-modal-actions">
+        <Modal
+          open
+          onClose={() => setDeleteId(null)}
+          title="Hapus Dokumen?"
+          titleId="rp-del-title"
+          role="alertdialog"
+          footer={
+            <>
               <button type="button" className="dbd-btn-ghost" onClick={() => setDeleteId(null)}>
                 Batal
               </button>
               <button type="button" className="dbd-btn-primary rp-danger" onClick={confirmDelete}>
                 Ya, Hapus
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+            <p className="jd-info">
+              <strong>{deleteDoc.judul}</strong> akan dihapus beserta filenya. Tindakan ini tidak bisa dibatalkan.
+            </p>
+        </Modal>
       )}
     </div>
   );

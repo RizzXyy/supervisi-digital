@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
   STATUS_META,
   SUPERVISOR,
@@ -18,6 +18,7 @@ import {
   type Teacher,
 } from "../../lib/dashboard-data";
 import { getSession, type Session } from "../../lib/auth";
+import Modal from "../../components/ui/Modal";
 import "../dashboard-home.css";
 import "./jadwal.css";
 
@@ -342,22 +343,28 @@ export default function JadwalPage() {
 
       {/* Form buat / edit jadwal */}
       {modal && (
-        <div className="dbd-modal-backdrop" onClick={() => setModal(null)}>
-          <div
-            className="dbd-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="jt-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="dbd-modal-head">
-              <h3 id="jt-modal-title">{modal.mode === "edit" ? "Ubah Jadwal" : "Buat Jadwal Supervisi"}</h3>
-              <button type="button" onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title={modal.mode === "edit" ? "Ubah Jadwal" : "Buat Jadwal Supervisi"}
+          titleId="jt-modal-title"
+          footer={
+            <>
+              {modal.mode === "edit" && (
+                <button type="button" className={`jd-del${confirmDel ? " is-confirm" : ""}`} onClick={handleDelete}>
+                  {confirmDel ? "Ya, hapus" : "Hapus"}
+                </button>
+              )}
+              <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)}>
+                Batal
               </button>
-            </div>
-
-            <form className="dg-form" onSubmit={handleSubmit} noValidate>
+              <button type="submit" form="jt-form" className="dbd-btn-primary">
+                {modal.mode === "edit" ? "Simpan Perubahan" : "Simpan Jadwal"}
+              </button>
+            </>
+          }
+        >
+            <form id="jt-form" className="dg-form" onSubmit={handleSubmit} noValidate>
               <label className="dg-field">
                 Guru yang disupervisi
                 <select value={form.teacherId} onChange={(e) => pickTeacher(e.target.value)}>
@@ -415,23 +422,8 @@ export default function JadwalPage() {
                   {error}
                 </p>
               )}
-
-              <div className="dbd-modal-actions">
-                {modal.mode === "edit" && (
-                  <button type="button" className={`jd-del${confirmDel ? " is-confirm" : ""}`} onClick={handleDelete}>
-                    {confirmDel ? "Ya, hapus" : "Hapus"}
-                  </button>
-                )}
-                <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)}>
-                  Batal
-                </button>
-                <button type="submit" className="dbd-btn-primary">
-                  {modal.mode === "edit" ? "Simpan Perubahan" : "Simpan Jadwal"}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

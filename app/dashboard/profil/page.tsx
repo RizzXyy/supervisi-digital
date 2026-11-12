@@ -33,6 +33,7 @@ import { listRtlCloud } from "../../lib/rtl-supabase";
 import { formatTanggalPendek, fromDateKey, toDateKey } from "../../lib/dashboard-data";
 import { normNama } from "../../lib/id-stabil";
 import { statusRtl } from "../../lib/rtl-data";
+import "../dashboard-home.css";
 import s from "./profil.module.css";
 
 type Ajar = { id: number; mapel: string; kelas: string };
@@ -386,7 +387,7 @@ export default function ProfilPage() {
   }
 
   return (
-    <div className={s.page}>
+    <div className={`dbd ${s.page}`}>
       <header className={s.header}>
         <h1 className={s.title}>Profil Saya</h1>
         <p className={s.subtitle}>

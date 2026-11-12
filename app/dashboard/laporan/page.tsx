@@ -17,7 +17,6 @@ import {
   TrendingUp,
   User,
   Users,
-  X,
 } from "lucide-react";
 import { fromDateKey, formatTanggalPendek, loadTeachers, toDateKey, type Teacher } from "../../lib/dashboard-data";
 import { hitungSkor, inisial, type Observasi } from "../../lib/observasi-data";
@@ -27,6 +26,7 @@ import { STATUS_COACHING, loadCoaching, type Coaching } from "../../lib/coaching
 import { STATUS_RTL, loadRtl, progres, statusRtl, type Rtl, type StatusRtl } from "../../lib/rtl-data";
 import { listRtlCloud } from "../../lib/rtl-supabase";
 import { useRoleGuard } from "../../lib/use-role-guard";
+import Modal from "../../components/ui/Modal";
 import type { Role } from "../../lib/auth";
 import {
   PERIODE_OPSI,
@@ -575,14 +575,19 @@ function Halaman({ boot }: { boot: Boot }) {
 
       {/* Detail guru */}
       {detail && (
-        <div className="dbd-modal-backdrop lp-noprint" onClick={() => setDetailId(null)}>
-          <div className="dbd-modal lp-wide" role="dialog" aria-modal="true" aria-labelledby="lp-det-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="lp-det-title">Detail Laporan Guru</h3>
-              <button type="button" onClick={() => setDetailId(null)} aria-label="Tutup">
-                <X size={18} />
-              </button>
-            </div>
+        <Modal
+          open
+          onClose={() => setDetailId(null)}
+          title="Detail Laporan Guru"
+          titleId="lp-det-title"
+          size="lg"
+          backdropClassName="lp-noprint"
+          footer={
+            <button type="button" className="dbd-btn-primary" onClick={() => setDetailId(null)}>
+              Tutup
+            </button>
+          }
+        >
             <p className="lp-det-who">
               <strong>{detail.name}</strong> &middot; {detail.mapel} &middot; Periode: {labelPeriode}
             </p>
@@ -642,13 +647,7 @@ function Halaman({ boot }: { boot: Boot }) {
               </ul>
             )}
 
-            <div className="dbd-modal-actions">
-              <button type="button" className="dbd-btn-primary" onClick={() => setDetailId(null)}>
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

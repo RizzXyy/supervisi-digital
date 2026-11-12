@@ -28,6 +28,7 @@ import { listAkunGuru, listObservasiCloud, type AkunGuru } from "../../lib/obser
 import { listCoachingCloud } from "../../lib/coaching-supabase";
 import { hapusRtlCloud, importLocalRtl, listRtlCloud, simpanRtlCloud, type GagalImporRtl } from "../../lib/rtl-supabase";
 import { normNama } from "../../lib/id-stabil";
+import Modal from "../../components/ui/Modal";
 import {
   STATUS_RTL,
   STATUS_RTL_ORDER,
@@ -1139,15 +1140,24 @@ function Halaman({ boot }: { boot: Boot }) {
 
       {/* Detail RTL */}
       {det && stDet && (
-        <div className="dbd-modal-backdrop" onClick={() => setDetailId(null)}>
-          <div className="dbd-modal rt-wide" role="dialog" aria-modal="true" aria-labelledby="rt-det-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="rt-det-title">Detail RTL</h3>
-              <button type="button" onClick={() => setDetailId(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setDetailId(null)}
+          title="Detail RTL"
+          titleId="rt-det-title"
+          size="xl"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => openEdit(det)}>
+                <Pencil size={14} aria-hidden="true" />
+                &nbsp;Ubah
               </button>
-            </div>
-
+              <button type="button" className="dbd-btn-primary" onClick={() => setDetailId(null)}>
+                Tutup
+              </button>
+            </>
+          }
+        >
             <div className="rt-det-top">
               <div>
                 <strong>{det.target}</strong>
@@ -1314,146 +1324,133 @@ function Halaman({ boot }: { boot: Boot }) {
               </div>
             )}
 
-            <div className="dbd-modal-actions">
-              <button type="button" className="dbd-btn-ghost" onClick={() => openEdit(det)}>
-                <Pencil size={14} aria-hidden="true" />
-                &nbsp;Ubah
-              </button>
-              <button type="button" className="dbd-btn-primary" onClick={() => setDetailId(null)}>
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Form RTL */}
       {modal && (
-        <div className="dbd-modal-backdrop" onClick={() => setModal(null)}>
-          <div className="dbd-modal" role="dialog" aria-modal="true" aria-labelledby="rt-form-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="rt-form-title">{modal.mode === "edit" ? "Ubah RTL" : "Buat RTL Manual"}</h3>
-              <button type="button" onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title={modal.mode === "edit" ? "Ubah RTL" : "Buat RTL Manual"}
+          titleId="rt-form-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)}>
+                Batal
               </button>
-            </div>
-
-            <form className="dg-form" onSubmit={handleSubmit} noValidate>
-              <label className="dg-field">
-                Guru
-                <select
-                  value={form.teacherId}
-                  onChange={(e) => pickTeacher(e.target.value)}
-                  disabled={user?.role === "guru"}
-                >
-                  <option value="">Pilih guru</option>
-                  {guruTerurut.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                  {!!form.teacherId &&
-                    !guruTerurut.some((t) => t.id === form.teacherId) &&
-                    nameOf(form.teacherId) !== "-" && (
-                      <option value={form.teacherId}>{nameOf(form.teacherId)}</option>
-                    )}
-                </select>
-              </label>
-
-              <label className="dg-field">
-                Ambil dari hasil observasi (opsional)
-                <select value={form.observasiId} onChange={(e) => pickObservasi(e.target.value)}>
-                  <option value="">
-                    {form.teacherId && observasiOpsi.length === 0
-                      ? "Belum ada hasil observasi diterbitkan"
-                      : "Tidak dipilih"}
-                  </option>
-                  {observasiOpsi.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} {o.kelas}
-                      {o.pokok ? ` - ${o.pokok}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="dg-field">
-                Ambil dari sesi Micro-Coaching (opsional)
-                <select value={form.coachingId} onChange={(e) => pickCoaching(e.target.value)}>
-                  <option value="">
-                    {form.teacherId && coachingOpsi.length === 0 ? "Belum ada sesi dengan AI Feedback" : "Tidak dipilih"}
-                  </option>
-                  {coachingOpsi.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {formatTanggalPendek(fromDateKey(c.date))} - {c.topik}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="dg-field">
-                Target perbaikan
-                <input
-                  type="text"
-                  placeholder="Contoh: Meningkatkan partisipasi siswa melalui diskusi"
-                  value={form.target}
-                  onChange={(e) => setField("target", e.target.value)}
-                />
-              </label>
-
-              <div className="dg-row">
+              <button type="submit" form="rt-form" className="dbd-btn-primary">
+                {modal.mode === "edit" ? "Simpan Perubahan" : "Simpan RTL"}
+              </button>
+            </>
+          }
+        >
+            <form id="rt-form" className="dg-form" onSubmit={handleSubmit} noValidate>
                 <label className="dg-field">
-                  Tenggat
-                  <input type="date" value={form.tenggat} onChange={(e) => setField("tenggat", e.target.value)} />
+                  Guru
+                  <select
+                    value={form.teacherId}
+                    onChange={(e) => pickTeacher(e.target.value)}
+                    disabled={user?.role === "guru"}
+                  >
+                    <option value="">Pilih guru</option>
+                    {guruTerurut.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                    {!!form.teacherId &&
+                      !guruTerurut.some((t) => t.id === form.teacherId) &&
+                      nameOf(form.teacherId) !== "-" && (
+                        <option value={form.teacherId}>{nameOf(form.teacherId)}</option>
+                      )}
+                  </select>
                 </label>
+
                 <label className="dg-field">
-                  Kelas (opsional)
-                  <input type="text" placeholder="Contoh: Kelas 4" value={form.kelas} onChange={(e) => setField("kelas", e.target.value)} />
+                  Ambil dari hasil observasi (opsional)
+                  <select value={form.observasiId} onChange={(e) => pickObservasi(e.target.value)}>
+                    <option value="">
+                      {form.teacherId && observasiOpsi.length === 0
+                        ? "Belum ada hasil observasi diterbitkan"
+                        : "Tidak dipilih"}
+                    </option>
+                    {observasiOpsi.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {formatTanggalPendek(fromDateKey(o.date))} - {o.mapel} {o.kelas}
+                        {o.pokok ? ` - ${o.pokok}` : ""}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-              </div>
 
-              <label className="dg-field">
-                Indikator keberhasilan (satu baris satu butir)
-                <textarea
-                  rows={3}
-                  value={form.indikator}
-                  onChange={(e) => setField("indikator", e.target.value)}
-                  placeholder={"Guru menerapkan diskusi kelompok\nLebih banyak siswa aktif menjawab"}
-                />
-              </label>
+                <label className="dg-field">
+                  Ambil dari sesi Micro-Coaching (opsional)
+                  <select value={form.coachingId} onChange={(e) => pickCoaching(e.target.value)}>
+                    <option value="">
+                      {form.teacherId && coachingOpsi.length === 0 ? "Belum ada sesi dengan AI Feedback" : "Tidak dipilih"}
+                    </option>
+                    {coachingOpsi.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {formatTanggalPendek(fromDateKey(c.date))} - {c.topik}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className="dg-field">
-                Tahapan pelaksanaan (satu baris satu tahap)
-                <textarea
-                  rows={4}
-                  value={form.tahapan}
-                  onChange={(e) => setField("tahapan", e.target.value)}
-                  placeholder={"Menyusun rencana diskusi\nMencoba di satu kelas\nRefleksi hasil"}
-                />
-              </label>
+                <label className="dg-field">
+                  Target perbaikan
+                  <input
+                    type="text"
+                    placeholder="Contoh: Meningkatkan partisipasi siswa melalui diskusi"
+                    value={form.target}
+                    onChange={(e) => setField("target", e.target.value)}
+                  />
+                </label>
 
-              <label className="dg-field">
-                Rekomendasi observasi / AI (satu baris satu butir)
-                <textarea rows={3} value={form.rekomendasi} onChange={(e) => setField("rekomendasi", e.target.value)} />
-              </label>
+                <div className="dg-row">
+                  <label className="dg-field">
+                    Tenggat
+                    <input type="date" value={form.tenggat} onChange={(e) => setField("tenggat", e.target.value)} />
+                  </label>
+                  <label className="dg-field">
+                    Kelas (opsional)
+                    <input type="text" placeholder="Contoh: Kelas 4" value={form.kelas} onChange={(e) => setField("kelas", e.target.value)} />
+                  </label>
+                </div>
 
-              {error && (
-                <p className="dg-error" role="alert">
-                  {error}
-                </p>
-              )}
+                <label className="dg-field">
+                  Indikator keberhasilan (satu baris satu butir)
+                  <textarea
+                    rows={3}
+                    value={form.indikator}
+                    onChange={(e) => setField("indikator", e.target.value)}
+                    placeholder={"Guru menerapkan diskusi kelompok\nLebih banyak siswa aktif menjawab"}
+                  />
+                </label>
 
-              <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)}>
-                  Batal
-                </button>
-                <button type="submit" className="dbd-btn-primary">
-                  {modal.mode === "edit" ? "Simpan Perubahan" : "Simpan RTL"}
-                </button>
-              </div>
+                <label className="dg-field">
+                  Tahapan pelaksanaan (satu baris satu tahap)
+                  <textarea
+                    rows={4}
+                    value={form.tahapan}
+                    onChange={(e) => setField("tahapan", e.target.value)}
+                    placeholder={"Menyusun rencana diskusi\nMencoba di satu kelas\nRefleksi hasil"}
+                  />
+                </label>
+
+                <label className="dg-field">
+                  Rekomendasi observasi / AI (satu baris satu butir)
+                  <textarea rows={3} value={form.rekomendasi} onChange={(e) => setField("rekomendasi", e.target.value)} />
+                </label>
+
+                {error && (
+                  <p className="dg-error" role="alert">
+                    {error}
+                  </p>
+                )}
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

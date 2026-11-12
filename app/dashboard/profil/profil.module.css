@@ -10,13 +10,7 @@
   width: 100%;
   min-width: 0;
   max-width: 1000px;
-  /* Beri jarak ekstra dari sidebar agar judul tidak terlihat menempel. */
-  padding-left: 0;
-  padding-right: 12px;
-  padding-top: 25px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   color: var(--g-text);
-  animation: masukNaik 0.34s var(--ease) both;
 }
 
 .header {
@@ -527,9 +521,6 @@
 
 /* Tablet kecil: kartu identitas jadi satu baris penuh, form 1 kolom */
 @media (max-width: 800px) {
-  .page {
-    padding-left: 12px;
-  }
   .profileRow {
     flex-direction: column;
     align-items: stretch;
@@ -574,13 +565,6 @@
 
 /* HP */
 @media (max-width: 640px) {
-  /* Kiri sudah diberi jarak oleh layout (sidebar); kanan diberi jarak
-     yang sama supaya kartu dan tombol tidak menempel ke tepi layar. */
-  .page {
-    padding-left: 0;
-    padding-right: 12px;
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  }
   .header {
     margin-bottom: 16px;
   }

@@ -23,9 +23,9 @@ import {
   Sparkles,
   StickyNote,
   TriangleAlert,
-  X,
 } from "lucide-react";
 import { getAccessToken, getSession, type Session } from "../../lib/auth";
+import Modal from "../../components/ui/Modal";
 import {
   BULAN_LENGKAP,
   formatTanggalPendek,
@@ -974,14 +974,22 @@ export default function AiFeedbackPage() {
 
       {/* Ubah data: pilih sesi supervisi (dan guru, untuk kepala sekolah) */}
       {editOpen && (
-        <div className="dbd-modal-backdrop" onClick={() => setEditOpen(false)}>
-          <div className="dbd-modal" role="dialog" aria-modal="true" aria-labelledby="af-edit-title" onClick={(e) => e.stopPropagation()}>
-            <div className="dbd-modal-head">
-              <h3 id="af-edit-title">Ubah Data</h3>
-              <button type="button" onClick={() => setEditOpen(false)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setEditOpen(false)}
+          title="Ubah Data"
+          titleId="af-edit-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setEditOpen(false)}>
+                Batal
               </button>
-            </div>
+              <button type="button" className="dbd-btn-primary" onClick={applyEdit}>
+                Terapkan
+              </button>
+            </>
+          }
+        >
             <div className="dg-form">
               {!isGuru && (
                 <label className="dg-field">
@@ -1007,17 +1015,8 @@ export default function AiFeedbackPage() {
                 </select>
               </label>
               <p className="jd-info">Feedback ditampilkan sesuai sesi supervisi yang dipilih.</p>
-              <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setEditOpen(false)}>
-                  Batal
-                </button>
-                <button type="button" className="dbd-btn-primary" onClick={applyEdit}>
-                  Terapkan
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

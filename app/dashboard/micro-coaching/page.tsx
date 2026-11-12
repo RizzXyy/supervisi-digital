@@ -15,7 +15,6 @@ import {
   Search,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import {
   BULAN_LENGKAP,
@@ -46,6 +45,7 @@ import {
   listCoachingCloud,
   simpanCoachingCloud,
 } from "../../lib/coaching-supabase";
+import Modal from "../../components/ui/Modal";
 import "../dashboard-home.css";
 import "./micro-coaching.css";
 
@@ -794,22 +794,23 @@ function Halaman({ boot }: { boot: Boot }) {
 
       {/* Form jadwal */}
       {modal && (
-        <div className="dbd-modal-backdrop" onClick={() => setModal(null)}>
-          <div
-            className="dbd-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mc-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="dbd-modal-head">
-              <h3 id="mc-modal-title">{modal.mode === "edit" ? "Ubah Jadwal Coaching" : "Jadwalkan Coaching"}</h3>
-              <button type="button" onClick={() => setModal(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title={modal.mode === "edit" ? "Ubah Jadwal Coaching" : "Jadwalkan Coaching"}
+          titleId="mc-modal-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)} disabled={busy}>
+                Batal
               </button>
-            </div>
-
-            <form className="dg-form" onSubmit={handleSubmit} noValidate>
+              <button type="submit" form="mc-form" className="dbd-btn-primary" disabled={busy}>
+                {busy ? "Menyimpan..." : modal.mode === "edit" ? "Simpan Perubahan" : "Simpan Jadwal"}
+              </button>
+            </>
+          }
+        >
+            <form id="mc-form" className="dg-form" onSubmit={handleSubmit} noValidate>
               <label className="dg-field">
                 Guru
                 <select
@@ -916,39 +917,45 @@ function Halaman({ boot }: { boot: Boot }) {
                   {error}
                 </p>
               )}
-
-              <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setModal(null)} disabled={busy}>
-                  Batal
-                </button>
-                <button type="submit" className="dbd-btn-primary" disabled={busy}>
-                  {busy ? "Menyimpan..." : modal.mode === "edit" ? "Simpan Perubahan" : "Simpan Jadwal"}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* AI Feedback */}
       {aiOpen && selected && (
-        <div className="dbd-modal-backdrop" onClick={() => setAiOpen(false)}>
-          <div
-            className="dbd-modal mc-wide"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mc-ai-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="dbd-modal-head">
-              <h3 id="mc-ai-title" className="mc-ai-title">
-                <Sparkles size={18} aria-hidden="true" /> AI Feedback
-              </h3>
-              <button type="button" onClick={() => setAiOpen(false)} aria-label="Tutup">
-                <X size={18} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setAiOpen(false)}
+          title={
+            <span className="mc-ai-title">
+              <Sparkles size={18} aria-hidden="true" /> AI Feedback
+            </span>
+          }
+          titleId="mc-ai-title"
+          size="lg"
+          footer={
+            fb && !aiLoading ? (
+              <>
+                <button type="button" className="dbd-btn-ghost" onClick={() => salin(fb)}>
+                  <Copy size={14} aria-hidden="true" />
+                  &nbsp;{tersalin ? "Tersalin" : "Salin"}
+                </button>
+                <button
+                  type="button"
+                  className="dbd-btn-ghost"
+                  onClick={() => buatAnalisis(selected.observasiId ?? pilihObs)}
+                  disabled={!(selected.observasiId ?? pilihObs)}
+                >
+                  <RefreshCw size={14} aria-hidden="true" />
+                  &nbsp;Buat Ulang
+                </button>
+                <button type="button" className="dbd-btn-primary" onClick={() => setAiOpen(false)}>
+                  Tutup
+                </button>
+              </>
+            ) : undefined
+          }
+        >
             <p className="mc-ai-ctx">
               Bahan diskusi untuk <strong>{nameOf(selected.teacherId)}</strong> - {selected.topik}
               {obsTerkait && (
@@ -1050,28 +1057,9 @@ function Halaman({ boot }: { boot: Boot }) {
                   Dibuat oleh AI ({fb.model}) pada {fb.dibuat}. Ini bahan diskusi, bukan penilaian. Tinjau sebelum
                   dipakai.
                 </p>
-                <div className="dbd-modal-actions">
-                  <button type="button" className="dbd-btn-ghost" onClick={() => salin(fb)}>
-                    <Copy size={14} aria-hidden="true" />
-                    &nbsp;{tersalin ? "Tersalin" : "Salin"}
-                  </button>
-                  <button
-                    type="button"
-                    className="dbd-btn-ghost"
-                    onClick={() => buatAnalisis(selected.observasiId ?? pilihObs)}
-                    disabled={!(selected.observasiId ?? pilihObs)}
-                  >
-                    <RefreshCw size={14} aria-hidden="true" />
-                    &nbsp;Buat Ulang
-                  </button>
-                  <button type="button" className="dbd-btn-primary" onClick={() => setAiOpen(false)}>
-                    Tutup
-                  </button>
-                </div>
               </div>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

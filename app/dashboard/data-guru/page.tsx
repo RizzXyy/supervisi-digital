@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search } from "lucide-react";
 import {
   KATEGORI,
   formatNip,
@@ -13,6 +13,7 @@ import {
   type Teacher,
 } from "../../lib/dashboard-data";
 import { getSession, type Session } from "../../lib/auth";
+import Modal from "../../components/ui/Modal";
 import "../dashboard-home.css";
 
 const PAGE_SIZE = 8;
@@ -303,22 +304,23 @@ export default function DataGuruPage() {
 
       {/* Form tambah / edit guru */}
       {modal && (
-        <div className="dbd-modal-backdrop" onClick={() => setModal(false)}>
-          <div
-            className="dbd-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="dg-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="dbd-modal-head">
-              <h3 id="dg-modal-title">{editId ? "Edit Guru" : "Tambah Guru"}</h3>
-              <button type="button" onClick={() => setModal(false)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setModal(false)}
+          title={editId ? "Edit Guru" : "Tambah Guru"}
+          titleId="dg-modal-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setModal(false)}>
+                Batal
               </button>
-            </div>
-
-            <form className="dg-form" onSubmit={handleSubmit} noValidate>
+              <button type="submit" form="dg-form" className="dbd-btn-primary">
+                {editId ? "Simpan Perubahan" : "Tambah Guru"}
+              </button>
+            </>
+          }
+        >
+            <form id="dg-form" className="dg-form" onSubmit={handleSubmit} noValidate>
               <label className="dg-field">
                 Nama Lengkap
                 <input
@@ -381,18 +383,8 @@ export default function DataGuruPage() {
                   {error}
                 </p>
               )}
-
-              <div className="dbd-modal-actions">
-                <button type="button" className="dbd-btn-ghost" onClick={() => setModal(false)}>
-                  Batal
-                </button>
-                <button type="submit" className="dbd-btn-primary">
-                  {editId ? "Simpan Perubahan" : "Tambah Guru"}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

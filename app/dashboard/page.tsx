@@ -14,9 +14,9 @@ import {
   ThumbsUp,
   TriangleAlert,
   Users,
-  X,
 } from "lucide-react";
 import { getSession, type Session } from "../lib/auth";
+import Modal from "../components/ui/Modal";
 import {
   BULAN_LENGKAP,
   SUPERVISOR,
@@ -393,21 +393,24 @@ export default function DashboardPage() {
 
       {/* Detail jadwal */}
       {detail && (
-        <div className="dbd-modal-backdrop" onClick={() => setDetail(null)}>
-          <div
-            className="dbd-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="dbd-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="dbd-modal-head">
-              <h3 id="dbd-modal-title">Detail Supervisi</h3>
-              <button type="button" onClick={() => setDetail(null)} aria-label="Tutup">
-                <X size={18} />
+        <Modal
+          open
+          onClose={() => setDetail(null)}
+          title="Detail Supervisi"
+          titleId="dbd-modal-title"
+          footer={
+            <>
+              <button type="button" className="dbd-btn-ghost" onClick={() => setDetail(null)}>
+                Tutup
               </button>
-            </div>
-
+              {!isGuru && (
+                <Link href={`/dashboard/observasi?jadwal=${detail.id}`} className="dbd-btn-primary">
+                  Mulai Observasi
+                </Link>
+              )}
+            </>
+          }
+        >
             <dl className="dbd-detail">
               <div>
                 <dt>Guru</dt>
@@ -437,18 +440,7 @@ export default function DashboardPage() {
               </div>
             </dl>
 
-            <div className="dbd-modal-actions">
-              <button type="button" className="dbd-btn-ghost" onClick={() => setDetail(null)}>
-                Tutup
-              </button>
-              {!isGuru && (
-                <Link href={`/dashboard/observasi?jadwal=${detail.id}`} className="dbd-btn-primary">
-                  Mulai Observasi
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
